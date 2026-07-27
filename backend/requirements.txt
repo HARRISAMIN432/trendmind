@@ -1,10 +1,10 @@
-fastapi==0.115.0
-uvicorn[standard]==0.30.6
-sqlalchemy==2.0.35
-alembic==1.13.3
-psycopg2-binary==2.9.9
-pydantic-settings==2.5.2
-python-dotenv==1.0.1
+fastapi
+uvicorn[standard]
+sqlalchemy
+alembic
+psycopg2-binary
+pydantic-settings
+python-dotenv
 pytest
 requests
 feedparser
@@ -13,3 +13,7 @@ langchain
 langchain-groq
 langchain-google-genai
 pydantic
+sentence-transformers
+langchain-hugging-face
+langchain-chroma
+chromadb

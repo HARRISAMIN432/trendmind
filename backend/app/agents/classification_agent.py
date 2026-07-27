@@ -9,7 +9,7 @@ from app.agents.prompts.classification_prompt import (
 
 try:
     from app.agents.cleaner_agent import CleanedArticle
-except ImportError:  # pragma: no cover - only hit if M03 file isn't present yet
+except ImportError:  
     from dataclasses import dataclass as _dc
 
     @_dc
@@ -96,19 +96,6 @@ def classify_all(
 
 
 def classification_node(state: dict) -> dict:
-    """
-    LangGraph-node-shaped wrapper for the M08 StateGraph.
-
-    Reads state["articles"] (list[CleanedArticle] from M03's cleaner_node),
-    overwrites it with list[ClassifiedArticle], and writes
-    state["classification_errors"].
-
-    Articles that fail classification are dropped from the pipeline at this
-    stage (not carried forward with null category/importance), since M05
-    (Summarization) does not require classification fields but M09's
-    Articles API filtering does — same "fail closed" decision M03 made for
-    clean_content.
-    """
     articles: list[CleanedArticle] = state.get("articles", [])
     classified, errors = classify_all(articles)
 
