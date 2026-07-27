@@ -9,3 +9,7 @@ pytest
 requests
 feedparser
 trafilatura
+langchain
+langchain-groq
+langchain-google-genai
+pydantic
