@@ -1,0 +1,38 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# README
+idea.md
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# VSCode
+.vscode/
+
+# production
+/build
+/dist
+
+# Temporary files
+*.tmp
+*.temp
+
+# Environment variables
+.env.*
+!.env.example
+
+# Python virtual environment
+backend/venv/
+backend/env/
+
+# Build outputs
+backend/dist/
