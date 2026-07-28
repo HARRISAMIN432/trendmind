@@ -18,3 +18,4 @@ langchain-huggingface
 langchain-chroma
 chromadb
 langgraph
+apscheduler

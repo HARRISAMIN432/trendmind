@@ -32,6 +32,14 @@ class Settings(BaseSettings):
     LANGCHAIN_TRACING_V2: bool = False
     LANGCHAIN_API_KEY: str | None = None
     LANGCHAIN_PROJECT: str = "trendmind"
+    ENABLE_SCHEDULER: bool = False
+ 
+    PIPELINE_INTERVAL_HOURS: int = 6    
+    TRENDS_INTERVAL_HOURS: int = 12       
+    GRAPH_INTERVAL_HOURS: int = 12      
+    NEWSLETTER_HOUR_UTC: int = 6          
+ 
+    SCHEDULER_API_KEY: str | None = None
 
 
 @lru_cache
