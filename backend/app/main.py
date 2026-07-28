@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import get_settings
-from app.api.routes import articles, search, chat, trends, companies, graph
+from app.api.routes import articles, search, chat, trends, companies, graph, newsletter, recommendations
 
 settings = get_settings()
 
@@ -25,7 +25,8 @@ app.include_router(chat.router)
 app.include_router(trends.router)
 app.include_router(companies.router)
 app.include_router(graph.router)
-
+app.include_router(newsletter.router)
+app.include_router(recommendations.router)
 
 @app.get("/")
 def root():
