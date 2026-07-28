@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import get_settings
+from app.api.routes import articles, search, chat
 
 settings = get_settings()
 
@@ -18,6 +19,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(articles.router)
+app.include_router(search.router)
+app.include_router(chat.router)
 
 @app.get("/")
 def root():

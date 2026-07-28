@@ -37,3 +37,41 @@ def upsert_embeddings(
 
 def query_similar(vectorstore, embedding: list[float], n_results: int = 5):
     return vectorstore.similarity_search_by_vector(embedding, k=n_results)
+
+def query_similar_with_scores(
+    vectorstore,
+    embedding: list[float],
+    n_results: int = 5,
+    where: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
+    """
+    Bypasses the langchain wrapper to get raw distances back (its
+    similarity_search_by_vector helper drops them). Collection is created with
+    collection_metadata={"hnsw:space": "cosine"}, so distance = 1 - cosine_similarity.
+    """
+    kwargs: dict[str, Any] = dict(
+        query_embeddings=[embedding],
+        n_results=n_results,
+        include=["metadatas", "documents", "distances"],
+    )
+    if where:
+        kwargs["where"] = where
+
+    raw = vectorstore._collection.query(**kwargs)
+
+    ids = raw.get("ids", [[]])[0]
+    documents = raw.get("documents", [[]])[0]
+    metadatas = raw.get("metadatas", [[]])[0]
+    distances = raw.get("distances", [[]])[0]
+
+    results: list[dict[str, Any]] = []
+    for i, doc_id in enumerate(ids):
+        distance = distances[i] if i < len(distances) else None
+        results.append({
+            "id": doc_id,
+            "document": documents[i] if i < len(documents) else None,
+            "metadata": metadatas[i] if i < len(metadatas) else {},
+            "distance": distance,
+            "score": (1.0 - distance) if distance is not None else None,
+        })
+    return results
