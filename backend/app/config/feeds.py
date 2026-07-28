@@ -29,7 +29,7 @@ AI_NEWS_FEEDS: list[FeedConfig] = [
     ),
     FeedConfig(
         name="The Verge AI",
-        rss_url="https://www.theverge.com/ai-artificial-intelligence/rss/index.xml",
+        rss_url="https://www.theverge.com/rss/ai-artificial-intelligence/index.xml",
         homepage_url="https://www.theverge.com/ai-artificial-intelligence",
     ),
     FeedConfig(
