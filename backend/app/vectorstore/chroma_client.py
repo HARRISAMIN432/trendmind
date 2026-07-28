@@ -75,3 +75,11 @@ def query_similar_with_scores(
             "score": (1.0 - distance) if distance is not None else None,
         })
     return results
+
+def get_embeddings_by_ids(vectorstore, ids: list[str]) -> dict[str, list[float]]:
+    """Returns {id: embedding} for the given ids. Missing ids are simply absent
+    from the result (not an error) - caller should check len(result) vs len(ids)."""
+    if not ids:
+        return {}
+    raw = vectorstore._collection.get(ids=ids, include=["embeddings"])
+    return dict(zip(raw.get("ids", []), raw.get("embeddings", [])))
