@@ -1,5 +1,5 @@
 from __future__ import annotations
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session, joinedload
 
 from app.db.session import get_db
@@ -8,6 +8,10 @@ from app.models.company import Company
 from app.schemas.article import (
     ArticleListItem, ArticleDetail, ArticleCreate, ArticleUpdate, PaginatedArticles,
 )
+from app.api.limiter import limiter
+from app.core.config import get_settings
+
+settings = get_settings()
 
 router = APIRouter(prefix="/articles", tags=["articles"])
 
@@ -19,7 +23,9 @@ def _base_query(db: Session):
 
 
 @router.get("", response_model=PaginatedArticles)
+@limiter.limit(f"{settings.RATE_LIMIT_PER_MINUTE}/minute")
 def list_articles(
+    request: Request,
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
     category: str | None = None,
@@ -67,7 +73,8 @@ def list_articles(
 
 
 @router.get("/{article_id}", response_model=ArticleDetail)
-def get_article(article_id: int, db: Session = Depends(get_db)) -> ArticleDetail:
+@limiter.limit(f"{settings.RATE_LIMIT_PER_MINUTE}/minute")
+def get_article(request: Request ,article_id: int, db: Session = Depends(get_db)) -> ArticleDetail:
     article = _base_query(db).filter(Article.id == article_id).first()
     if article is None:
         raise HTTPException(status_code=404, detail="Article not found")

@@ -1,6 +1,6 @@
 from __future__ import annotations
 from datetime import date
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.schemas.newsletter import (
@@ -14,12 +14,18 @@ from app.services.newsletter_service import (
     get_newsletter_by_date,
     list_newsletters,
 )
+from app.api.limiter import limiter
+from app.core.config import get_settings
+
+settings = get_settings()
 
 router = APIRouter(prefix="/newsletter", tags=["newsletter"])
 
 
 @router.get("", response_model=PaginatedNewsletterEntries)
+@limiter.limit(f"{settings.RATE_LIMIT_PER_MINUTE}/minute")
 def get_newsletters(
+    request: Request,
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),

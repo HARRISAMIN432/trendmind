@@ -11,7 +11,7 @@ class Settings(BaseSettings):
 
     # --- App ---
     APP_NAME: str = "TrendMind"
-    ENVIRONMENT: str = "development"
+    ENVIRONMENT: str = "development"  # M22: "development" | "production"
 
     # --- Database (Neon Postgres — required) ---
     DATABASE_URL: str = "postgresql://user:password@localhost/trendmind"
@@ -59,6 +59,21 @@ class Settings(BaseSettings):
     GRAPH_INTERVAL_HOURS: int = 12      
     NEWSLETTER_HOUR_UTC: int = 6          
     SCHEDULER_API_KEY: Optional[str] = None
+
+    # --- M22: CORS hardening ---
+    ALLOWED_ORIGINS: str = "http://localhost:3000"  # Comma-separated list
+
+    RATE_LIMIT_PER_MINUTE: int = 60
+
+    @property
+    def allowed_origins_list(self) -> list[str]:
+        """Parse comma-separated ALLOWED_ORIGINS into a list."""
+        return [o.strip() for o in self.ALLOWED_ORIGINS.split(",") if o.strip()]
+
+    @property
+    def is_production(self) -> bool:
+        """Check if running in production environment."""
+        return self.ENVIRONMENT.lower() == "production"
 
     def model_post_init(self, __context):
         """Parse GROQ_API_KEY1..5 and GOOGLE_API_KEY1..5 into lists."""
