@@ -33,7 +33,7 @@ export default async function GraphPage() {
         {graph.nodes.length === 0 ? (
           <EmptyState
             title="Graph is empty"
-            description="Build the knowledge graph via POST /graph/build on the backend. The scheduler (M21) can automate this."
+            description="Nothing to show for now"
           />
         ) : (
           <>
