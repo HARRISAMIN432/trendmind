@@ -1,0 +1,77 @@
+version: "3.8"
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: trendmind-backend
+    ports:
+      - "8000:8000"
+    environment:
+      # --- App ---
+      - APP_NAME=${APP_NAME:-TrendMind}
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+
+      # --- Database (Neon Postgres) ---
+      - DATABASE_URL=${DATABASE_URL}
+
+      # --- LLM providers - Groq (5 keys) ---
+      - GROQ_API_KEY1=${GROQ_API_KEY1}
+      - GROQ_API_KEY2=${GROQ_API_KEY2}
+      - GROQ_API_KEY3=${GROQ_API_KEY3}
+      - GROQ_API_KEY4=${GROQ_API_KEY4}
+      - GROQ_API_KEY5=${GROQ_API_KEY5}
+
+      # --- LLM providers - Gemini (5 keys) ---
+      - GOOGLE_API_KEY1=${GOOGLE_API_KEY1}
+      - GOOGLE_API_KEY2=${GOOGLE_API_KEY2}
+      - GOOGLE_API_KEY3=${GOOGLE_API_KEY3}
+      - GOOGLE_API_KEY4=${GOOGLE_API_KEY4}
+      - GOOGLE_API_KEY5=${GOOGLE_API_KEY5}
+
+      # --- Chroma Vector DB ---
+      - CHROMA_HOST=${CHROMA_HOST}
+      - CHROMA_API_KEY=${CHROMA_API_KEY}
+      - CHROMA_TENANT=${CHROMA_TENANT}
+      - CHROMA_DATABASE=${CHROMA_DATABASE:-trendmind}
+      - CHROMA_PERSIST_DIR=${CHROMA_PERSIST_DIR:-./chroma_data}
+
+      # --- Model Configuration ---
+      - GROQ_MODEL=${GROQ_MODEL:-llama-3.3-70b-versatile}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.0-flash}
+
+      # --- LangSmith (optional) ---
+      - LANGCHAIN_TRACING_V2=${LANGCHAIN_TRACING_V2:-false}
+      - LANGCHAIN_API_KEY=${LANGCHAIN_API_KEY}
+      - LANGCHAIN_PROJECT=${LANGCHAIN_PROJECT:-trendmind}
+
+      # --- Scheduler ---
+      - ENABLE_SCHEDULER=${ENABLE_SCHEDULER:-false}
+      - PIPELINE_INTERVAL_HOURS=${PIPELINE_INTERVAL_HOURS:-6}
+      - TRENDS_INTERVAL_HOURS=${TRENDS_INTERVAL_HOURS:-12}
+      - GRAPH_INTERVAL_HOURS=${GRAPH_INTERVAL_HOURS:-12}
+      - NEWSLETTER_HOUR_UTC=${NEWSLETTER_HOUR_UTC:-6}
+      - SCHEDULER_API_KEY=${SCHEDULER_API_KEY}
+
+      # --- M22: CORS Hardening ---
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3000}
+
+      # --- M22: Rate Limiting ---
+      - RATE_LIMIT_PER_MINUTE=${RATE_LIMIT_PER_MINUTE:-60}
+
+    volumes:
+      - ./chroma_data:/app/chroma_data
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
