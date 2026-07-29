@@ -15,50 +15,215 @@ jobs:
     if: github.event.schedule == '0 */6 * * *' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
+      - name: Debug - Check secrets and environment
+        run: |
+          echo "=========================================="
+          echo "DEBUG: Checking environment variables"
+          echo "=========================================="
+          echo "API_BASE_URL is set: ${{ secrets.API_BASE_URL != '' }}"
+          echo "SCHEDULER_API_KEY is set: ${{ secrets.SCHEDULER_API_KEY != '' }}"
+          echo "Current time: $(date)"
+          echo "Event name: ${{ github.event_name }}"
+          echo "Schedule: ${{ github.event.schedule }}"
+          echo "=========================================="
+
+          # Mask the actual values but check if they're properly formatted
+          if [ -n "${{ secrets.API_BASE_URL }}" ]; then
+            echo "API_BASE_URL length: ${#API_BASE_URL}"
+            # Check if it starts with http:// or https://
+            if [[ "${{ secrets.API_BASE_URL }}" =~ ^https?:// ]]; then
+              echo "✓ API_BASE_URL has valid protocol"
+            else
+              echo "✗ API_BASE_URL missing protocol (http:// or https://)"
+            fi
+          else
+            echo "✗ API_BASE_URL is empty or not set"
+          fi
+
+      - name: Test API health endpoint
+        run: |
+          echo "=========================================="
+          echo "Testing API health endpoint..."
+          echo "=========================================="
+
+          # Test with verbose output
+          curl -v --max-time 10 \
+            "${{ secrets.API_BASE_URL }}/health" \
+            2>&1 || true
+
+          echo "=========================================="
+          echo "Health check completed"
+          echo "=========================================="
+
       - name: Trigger ingestion pipeline
         run: |
-          curl -sS -f --retry 2 --retry-delay 30 --retry-connrefused \
+          echo "=========================================="
+          echo "Triggering ingestion pipeline..."
+          echo "=========================================="
+          echo "URL: ${{ secrets.API_BASE_URL }}/internal/run-pipeline"
+          echo "Time: $(date)"
+          echo "=========================================="
+
+          # Capture response and exit code
+          RESPONSE=$(curl -v -sS \
             -X POST "${{ secrets.API_BASE_URL }}/internal/run-pipeline" \
             -H "X-Scheduler-Key: ${{ secrets.SCHEDULER_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -H "User-Agent: GitHubActions/1.0" \
             --max-time 600 \
-            -w "\nHTTP %{http_code}\n"
+            -w "\n\nHTTP_STATUS:%{http_code}\nTIME_TOTAL:%{time_total}s\n" \
+            --retry 2 \
+            --retry-delay 30 \
+            --retry-connrefused \
+            2>&1) || EXIT_CODE=$?
+
+          echo "$RESPONSE"
+          echo "=========================================="
+          echo "Exit code: ${EXIT_CODE:-0}"
+
+          # Extract HTTP status
+          HTTP_STATUS=$(echo "$RESPONSE" | grep "HTTP_STATUS:" | cut -d':' -f2)
+          echo "HTTP Status: ${HTTP_STATUS:-unknown}"
+
+          # Check if we got a valid response
+          if [ -n "$HTTP_STATUS" ] && [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 300 ]; then
+            echo "✓ Pipeline triggered successfully (HTTP $HTTP_STATUS)"
+          else
+            echo "✗ Pipeline failed (HTTP ${HTTP_STATUS:-no response})"
+            echo "Response body:"
+            echo "$RESPONSE" | sed -n '/^{/,/^}/p' || echo "No JSON response"
+            
+            # Provide troubleshooting hints
+            if [ "$HTTP_STATUS" = "401" ]; then
+              echo "✗ Authentication failed - Check SCHEDULER_API_KEY"
+            elif [ "$HTTP_STATUS" = "503" ]; then
+              echo "✗ Service unavailable - Check if SCHEDULER_API_KEY is configured in the app"
+            elif [ -z "$HTTP_STATUS" ]; then
+              echo "✗ No response - Check if API is running and reachable"
+            fi
+            exit 1
+          fi
 
   run-trends-and-graph:
     runs-on: ubuntu-latest
-    # needs run-pipeline so a manual workflow_dispatch run processes new
-    # articles before generating trends/graph from them. On the real cron
-    # schedules this is a no-op - the two cron expressions never fire in the
-    # same event, so run-pipeline is always "skipped" (not run) on that path,
-    # which the if: condition below explicitly allows through.
     needs: run-pipeline
     if: |
       always() &&
       (github.event.schedule == '30 5,17 * * *' || github.event_name == 'workflow_dispatch') &&
       (needs.run-pipeline.result == 'success' || needs.run-pipeline.result == 'skipped')
     steps:
+      - name: Debug - Check run conditions
+        run: |
+          echo "=========================================="
+          echo "DEBUG: run-trends-and-graph job"
+          echo "=========================================="
+          echo "needs.run-pipeline.result: ${{ needs.run-pipeline.result }}"
+          echo "github.event.schedule: ${{ github.event.schedule }}"
+          echo "github.event_name: ${{ github.event_name }}"
+          echo "=========================================="
+
       - name: Trigger trend generation
         run: |
-          curl -sS -f --retry 2 --retry-delay 30 --retry-connrefused \
+          echo "=========================================="
+          echo "Triggering trend generation..."
+          echo "=========================================="
+
+          RESPONSE=$(curl -v -sS \
             -X POST "${{ secrets.API_BASE_URL }}/internal/run-trends" \
             -H "X-Scheduler-Key: ${{ secrets.SCHEDULER_API_KEY }}" \
+            -H "Content-Type: application/json" \
             --max-time 300 \
-            -w "\nHTTP %{http_code}\n"
+            -w "\n\nHTTP_STATUS:%{http_code}\nTIME_TOTAL:%{time_total}s\n" \
+            --retry 2 \
+            --retry-delay 30 \
+            --retry-connrefused \
+            2>&1) || EXIT_CODE=$?
+
+          echo "$RESPONSE"
+          echo "=========================================="
+          echo "Exit code: ${EXIT_CODE:-0}"
+
+          HTTP_STATUS=$(echo "$RESPONSE" | grep "HTTP_STATUS:" | cut -d':' -f2)
+          echo "HTTP Status: ${HTTP_STATUS:-unknown}"
+
+          if [ -n "$HTTP_STATUS" ] && [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 300 ]; then
+            echo "✓ Trends generated successfully (HTTP $HTTP_STATUS)"
+          else
+            echo "✗ Trend generation failed (HTTP ${HTTP_STATUS:-no response})"
+            exit 1
+          fi
+
       - name: Trigger knowledge graph build
         run: |
-          curl -sS -f --retry 2 --retry-delay 30 --retry-connrefused \
+          echo "=========================================="
+          echo "Triggering knowledge graph build..."
+          echo "=========================================="
+
+          RESPONSE=$(curl -v -sS \
             -X POST "${{ secrets.API_BASE_URL }}/internal/run-graph" \
             -H "X-Scheduler-Key: ${{ secrets.SCHEDULER_API_KEY }}" \
+            -H "Content-Type: application/json" \
             --max-time 600 \
-            -w "\nHTTP %{http_code}\n"
+            -w "\n\nHTTP_STATUS:%{http_code}\nTIME_TOTAL:%{time_total}s\n" \
+            --retry 2 \
+            --retry-delay 30 \
+            --retry-connrefused \
+            2>&1) || EXIT_CODE=$?
+
+          echo "$RESPONSE"
+          echo "=========================================="
+          echo "Exit code: ${EXIT_CODE:-0}"
+
+          HTTP_STATUS=$(echo "$RESPONSE" | grep "HTTP_STATUS:" | cut -d':' -f2)
+          echo "HTTP Status: ${HTTP_STATUS:-unknown}"
+
+          if [ -n "$HTTP_STATUS" ] && [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 300 ]; then
+            echo "✓ Knowledge graph built successfully (HTTP $HTTP_STATUS)"
+          else
+            echo "✗ Knowledge graph build failed (HTTP ${HTTP_STATUS:-no response})"
+            exit 1
+          fi
 
   run-newsletter:
     if: github.event.schedule == '0 6 * * *' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
+      - name: Debug - Check newsletter conditions
+        run: |
+          echo "=========================================="
+          echo "DEBUG: run-newsletter job"
+          echo "=========================================="
+          echo "github.event.schedule: ${{ github.event.schedule }}"
+          echo "github.event_name: ${{ github.event_name }}"
+          echo "=========================================="
+
       - name: Trigger newsletter generation
         run: |
-          curl -sS -f --retry 2 --retry-delay 30 --retry-connrefused \
+          echo "=========================================="
+          echo "Triggering newsletter generation..."
+          echo "=========================================="
+
+          RESPONSE=$(curl -v -sS \
             -X POST "${{ secrets.API_BASE_URL }}/internal/run-newsletter" \
             -H "X-Scheduler-Key: ${{ secrets.SCHEDULER_API_KEY }}" \
+            -H "Content-Type: application/json" \
             --max-time 180 \
-            -w "\nHTTP %{http_code}\n"
+            -w "\n\nHTTP_STATUS:%{http_code}\nTIME_TOTAL:%{time_total}s\n" \
+            --retry 2 \
+            --retry-delay 30 \
+            --retry-connrefused \
+            2>&1) || EXIT_CODE=$?
+
+          echo "$RESPONSE"
+          echo "=========================================="
+          echo "Exit code: ${EXIT_CODE:-0}"
+
+          HTTP_STATUS=$(echo "$RESPONSE" | grep "HTTP_STATUS:" | cut -d':' -f2)
+          echo "HTTP Status: ${HTTP_STATUS:-unknown}"
+
+          if [ -n "$HTTP_STATUS" ] && [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 300 ]; then
+            echo "✓ Newsletter generated successfully (HTTP $HTTP_STATUS)"
+          else
+            echo "✗ Newsletter generation failed (HTTP ${HTTP_STATUS:-no response})"
+            exit 1
+          fi

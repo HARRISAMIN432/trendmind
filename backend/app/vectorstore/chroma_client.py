@@ -1,11 +1,39 @@
 from __future__ import annotations
 import os
 from typing import Any
+from app.core.config import get_settings
 
-DEFAULT_PERSIST_DIR = os.getenv("CHROMA_PERSIST_DIR", "./chroma_db")
-DEFAULT_COLLECTION_NAME = os.getenv("CHROMA_COLLECTION_NAME", "articles")
+settings = get_settings()
 
-_vectorstore = None  
+DEFAULT_COLLECTION_NAME = 'articles'
+
+_vectorstore = None
+_client = None
+
+
+def _get_chroma_client():
+    global _client
+    if _client is None:
+        import chromadb
+
+        api_key = settings.CHROMA_API_KEY
+        tenant = settings.CHROMA_TENANT
+        database = settings.CHROMA_DATABASE
+
+        if not api_key or not tenant:
+            raise RuntimeError(
+                "CHROMA_API_KEY and CHROMA_TENANT must be set to use Chroma Cloud. "
+                "Create a free database at https://trychroma.com and set these "
+                "(plus optionally CHROMA_DATABASE) in your environment / .env."
+            )
+
+        _client = chromadb.CloudClient(
+            tenant=tenant,
+            database=database,
+            api_key=api_key,
+        )
+    return _client
+
 
 def get_vectorstore(embedding_function):
     global _vectorstore
@@ -13,9 +41,9 @@ def get_vectorstore(embedding_function):
         from langchain_chroma import Chroma
 
         _vectorstore = Chroma(
+            client=_get_chroma_client(),
             collection_name=DEFAULT_COLLECTION_NAME,
             embedding_function=embedding_function,
-            persist_directory=DEFAULT_PERSIST_DIR,
             collection_metadata={"hnsw:space": "cosine"},
         )
     return _vectorstore
@@ -38,17 +66,13 @@ def upsert_embeddings(
 def query_similar(vectorstore, embedding: list[float], n_results: int = 5):
     return vectorstore.similarity_search_by_vector(embedding, k=n_results)
 
+
 def query_similar_with_scores(
     vectorstore,
     embedding: list[float],
     n_results: int = 5,
     where: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
-    """
-    Bypasses the langchain wrapper to get raw distances back (its
-    similarity_search_by_vector helper drops them). Collection is created with
-    collection_metadata={"hnsw:space": "cosine"}, so distance = 1 - cosine_similarity.
-    """
     kwargs: dict[str, Any] = dict(
         query_embeddings=[embedding],
         n_results=n_results,
@@ -76,9 +100,8 @@ def query_similar_with_scores(
         })
     return results
 
+
 def get_embeddings_by_ids(vectorstore, ids: list[str]) -> dict[str, list[float]]:
-    """Returns {id: embedding} for the given ids. Missing ids are simply absent
-    from the result (not an error) - caller should check len(result) vs len(ids)."""
     if not ids:
         return {}
     raw = vectorstore._collection.get(ids=ids, include=["embeddings"])

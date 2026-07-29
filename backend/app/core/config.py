@@ -31,6 +31,12 @@ class Settings(BaseSettings):
     GOOGLE_API_KEY4: Optional[str] = None
     GOOGLE_API_KEY5: Optional[str] = None
     
+    # Chroma
+    CHROMA_HOST: Optional[str] = None
+    CHROMA_API_KEY: Optional[str] = None
+    CHROMA_TENANT: Optional[str] = None
+    CHROMA_DATABASE: str = "trendmind"
+    
     GROQ_MODEL: str = "llama-3.3-70b-versatile"
     GEMINI_MODEL: str = "gemini-2.0-flash"
 
