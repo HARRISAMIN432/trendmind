@@ -124,4 +124,5 @@ def summarization_node(state: dict) -> dict:
 
     state["articles"] = summarized
     state["summarization_errors"] = errors
+    print("SUMMARIZE:", len(summarized), "survived |", len(errors), "errors", "| sample:", errors[0].reason if errors else None)
     return state

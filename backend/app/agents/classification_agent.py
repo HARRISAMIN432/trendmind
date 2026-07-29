@@ -101,4 +101,5 @@ def classification_node(state: dict) -> dict:
 
     state["articles"] = classified
     state["classification_errors"] = errors
+    print("CLASSIFY:", len(classified), "survived |", len(errors), "errors", "| sample:", errors[0].reason if errors else None)
     return state

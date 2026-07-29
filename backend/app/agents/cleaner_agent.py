@@ -151,4 +151,5 @@ def cleaner_node(state: dict[str, Any]) -> dict[str, Any]:
     result = clean_all(incoming)
     state["articles"] = result.articles
     state["cleaner_errors"] = result.errors
+    print("CLEAN:", len(result.articles), "survived |", len(result.errors), "errors", "| sample:", result.errors[0].error if result.errors else None)
     return state

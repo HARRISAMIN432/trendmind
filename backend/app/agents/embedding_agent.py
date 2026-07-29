@@ -165,9 +165,12 @@ def embed_all(
 
 
 def embedding_node(state: dict) -> dict:
-    articles: list[SummarizedArticle] = state.get("articles", [])
+    articles = state.get("articles", [])
     embedded, errors = embed_all(articles, write_to_chroma=True)
-
+    if errors:
+        print("EMBED ERRORS:", errors[0].reason, "| count:", len(errors))  # temp
+    else:
+        print('No errors in embedding node')
     state["articles"] = embedded
     state["embedding_errors"] = errors
     return state

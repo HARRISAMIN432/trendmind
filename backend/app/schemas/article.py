@@ -89,6 +89,13 @@ class ArticleCreate(BaseModel):
     key_takeaway: str | None = None
     why_it_matters: str | None = None
     technical_highlights: str | None = None
+    # BUG FIX: these two were missing entirely. Pydantic's default extra="ignore"
+    # meant internal.py's ArticleCreate(embedding_id=..., duplicate_of_id=...)
+    # calls never raised - the kwargs were just silently dropped at construction,
+    # which is why every stored article had these NULL regardless of what the
+    # pipeline computed for them.
+    embedding_id: str | None = None
+    duplicate_of_id: int | None = None
     company_names: list[str] = []
 
 
