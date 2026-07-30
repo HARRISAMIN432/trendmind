@@ -61,7 +61,7 @@ class Settings(BaseSettings):
     SCHEDULER_API_KEY: Optional[str] = None
 
     # --- M22: CORS hardening ---
-    ALLOWED_ORIGINS: str = "https://digestai-liard.vercel.app/"  # Comma-separated list
+    ALLOWED_ORIGINS: str = "https://digestai-liard.vercel.app"  # Comma-separated list
 
     RATE_LIMIT_PER_MINUTE: int = 60
 
