@@ -33,7 +33,7 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 EMBEDDING_MODEL_NAME = "models/gemini-embedding-001"
-EMBEDDING_DIMENSIONS = 784
+EMBEDDING_DIMENSIONS = 768
 
 _google_embedding_key_manager: Optional[SequentialKeyManager] = None
 

@@ -8,11 +8,11 @@ from app.agents.prompts.summarization_prompt import (
 )
 try:
     from app.agents.classification_agent import ClassifiedArticle
-except ImportError:  # pragma: no cover - only hit if M04 file isn't present yet
+except ImportError: 
     from dataclasses import dataclass as _dc, field as _field
 
     @_dc
-    class ClassifiedArticle:  # type: ignore[no-redef]
+    class ClassifiedArticle:  
         title: str
         url: str
         source_name: str
@@ -108,17 +108,6 @@ def summarize_all(
 
 
 def summarization_node(state: dict) -> dict:
-    """
-    LangGraph-node-shaped wrapper for the M08 StateGraph.
-
-    Reads state["articles"] (list[ClassifiedArticle] from M04's
-    classification_node), overwrites it with list[SummarizedArticle], and
-    writes state["summarization_errors"].
-
-    Same "fail closed" decision as M03/M04: articles that fail summarization
-    are dropped rather than carried forward with null summary fields, since
-    M06 (Embedding) needs summary_short/clean_content to build embedding text.
-    """
     articles: list[ClassifiedArticle] = state.get("articles", [])
     summarized, errors = summarize_all(articles)
 

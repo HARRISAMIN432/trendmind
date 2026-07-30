@@ -18,9 +18,6 @@ logger = logging.getLogger("trendmind.internal")
 
 router = APIRouter(prefix="/internal", tags=["internal"])
 
-# Name -> FeedConfig, so a first-seen source gets its real rss_url (and
-# homepage_url, if the field exists) instead of a placeholder. Source.rss_url
-# is NOT NULL, so we can't just create a bare stub row from the name alone.
 _FEEDS_BY_NAME = {feed.name: feed for feed in AI_NEWS_FEEDS}
 
 
@@ -33,15 +30,6 @@ def _require_scheduler_key(x_scheduler_key: str | None = Header(default=None)) -
 
 
 def _resolve_source(db: Session, source_name: str | None) -> int | None:
-    """
-    Look up (or create) the Source row for a pipeline article's source_name.
-
-    The pipeline (collector_agent.CollectedArticle onward) only ever carries
-    `source_name`, never a `source_id` - there is no resolver from name to id
-    anywhere upstream, which is why `sources`/`articles.source_id` were both
-    empty before this fix. Mirrors the same case-insensitive lookup-or-create
-    pattern articles.py's `_resolve_companies` already uses for companies.
-    """
     if not source_name:
         return None
 
@@ -68,9 +56,6 @@ def _resolve_source(db: Session, source_name: str | None) -> int | None:
 
 
 def _article_to_create_payload(db: Session, article) -> ArticleCreate:
-    # DEBUG: dump every attribute the pipeline object actually carries, so we
-    # can see whether embedding_id/etc. exist on the object at all before
-    # getattr() would silently fall back to None/[].
     logger.warning(
         "PIPELINE ARTICLE ATTRS for url=%s: %s",
         getattr(article, "url", "<no url>"),
@@ -89,26 +74,14 @@ def _article_to_create_payload(db: Session, article) -> ArticleCreate:
         sub_category=getattr(article, "sub_category", None),
         importance=getattr(article, "importance", None),
         summary_short=getattr(article, "summary_short", None),
-        # BUG FIX: these three were never read at all - SummarizedArticle
-        # (and everything downstream of it) has always carried them.
         key_takeaway=getattr(article, "key_takeaway", None),
         why_it_matters=getattr(article, "why_it_matters", None),
         technical_highlights=getattr(article, "technical_highlights", None),
         embedding_id=getattr(article, "embedding_id", None),
         duplicate_of_id=getattr(article, "duplicate_of_id", None),
-        # BUG FIX: every pipeline dataclass names this field `companies`,
-        # never `company_names` - getattr(article, "company_names", ...)
-        # always missed and silently fell back to [].
         company_names=getattr(article, "companies", []) or [],
     )
 
-    # DEBUG: confirm what actually made it into the payload sent to create_article.
-    # Read defensively via getattr - if ArticleCreate doesn't declare a field
-    # (e.g. embedding_id), Pydantic can silently drop an unknown constructor
-    # kwarg rather than raising, which means the attribute won't exist on the
-    # built object even though we just "set" it above. That mismatch is
-    # exactly the kind of thing this log line exists to catch - it should
-    # never crash the store loop by itself.
     logger.warning(
         "ARTICLE_CREATE PAYLOAD for url=%s: source_id=%s embedding_id=%s "
         "key_takeaway=%r why_it_matters=%r technical_highlights=%r company_names=%s",
@@ -136,12 +109,12 @@ def trigger_pipeline(db: Session = Depends(get_db)) -> dict:
             stored += 1
         except HTTPException as exc:
             db.rollback()
-            print("STORE HTTP ERROR:", exc.status_code, exc.detail)  # temp
+            print("STORE HTTP ERROR:", exc.status_code, exc.detail) 
             skipped += 1 if exc.status_code == 409 else 0
             failed += 0 if exc.status_code == 409 else 1
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:  
             db.rollback()
-            print("STORE ERROR:", repr(exc))  # temp
+            print("STORE ERROR:", repr(exc))  
             failed += 1
 
     return {"stored": stored, "skipped_duplicate": skipped, "failed": failed}
