@@ -131,22 +131,6 @@ def clean_all(articles: list[CollectedArticle]) -> CleaningResult:
 
 
 def cleaner_node(state: dict[str, Any]) -> dict[str, Any]:
-    """
-    LangGraph-compatible node for the M08 pipeline graph.
-
-    Reads (from state):
-        - "articles": list[CollectedArticle] written by M02's
-          collector_node.
-
-    Writes to state:
-        - "articles": overwritten with list[CleanedArticle] — articles
-          that failed cleaning are dropped from the pipeline here
-          rather than carried forward with a null clean_content, since
-          M04/M05 both require clean_content to do their job.
-        - "cleaner_errors": list[CleaningError] for observability /
-          error-handling edges in the graph (same M08 constraint as
-          M02's "collector_errors").
-    """
     incoming: list[CollectedArticle] = state.get("articles", [])
     result = clean_all(incoming)
     state["articles"] = result.articles

@@ -17,25 +17,31 @@ jobs:
     steps:
       - name: Trigger ingestion pipeline
         run: |
-          RESPONSE=$(curl -sS -f \
+          echo "==> Calling $API_BASE_URL/internal/run-pipeline"
+          echo "==> Started at $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+
+          HTTP_STATUS=$(curl -sS \
             -X POST "${{ secrets.API_BASE_URL }}/internal/run-pipeline" \
             -H "X-Scheduler-Key: ${{ secrets.SCHEDULER_API_KEY }}" \
             -H "Content-Type: application/json" \
             --max-time 1800 \
-            -w "\nHTTP_STATUS:%{http_code}" \
             --retry 2 \
             --retry-delay 30 \
             --retry-connrefused \
-            2>&1) || EXIT_CODE=$?
+            -o /tmp/response.json \
+            -w "%{http_code}")
 
-          HTTP_STATUS=$(echo "$RESPONSE" | grep "HTTP_STATUS:" | cut -d':' -f2)
+          echo "==> Finished at $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          echo "==> HTTP status: $HTTP_STATUS"
+          echo "==> Response body:"
+          cat /tmp/response.json || true
 
           if [ -z "$HTTP_STATUS" ] || [ "$HTTP_STATUS" -lt 200 ] || [ "$HTTP_STATUS" -ge 300 ]; then
-            echo "Pipeline failed (HTTP ${HTTP_STATUS:-no response})"
+            echo "::error::Pipeline failed (HTTP ${HTTP_STATUS:-no response})"
             exit 1
           fi
 
-          echo "Pipeline completed successfully (HTTP $HTTP_STATUS)"
+          echo "==> Pipeline completed successfully (HTTP $HTTP_STATUS)"
 
   run-trends-and-graph:
     runs-on: ubuntu-latest
@@ -47,47 +53,59 @@ jobs:
     steps:
       - name: Trigger trend generation
         run: |
-          RESPONSE=$(curl -sS -f \
+          echo "==> Calling $API_BASE_URL/internal/run-trends"
+          echo "==> Started at $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+
+          HTTP_STATUS=$(curl -sS \
             -X POST "${{ secrets.API_BASE_URL }}/internal/run-trends" \
             -H "X-Scheduler-Key: ${{ secrets.SCHEDULER_API_KEY }}" \
             -H "Content-Type: application/json" \
             --max-time 1800 \
-            -w "\nHTTP_STATUS:%{http_code}" \
             --retry 2 \
             --retry-delay 30 \
             --retry-connrefused \
-            2>&1) || EXIT_CODE=$?
+            -o /tmp/response.json \
+            -w "%{http_code}")
 
-          HTTP_STATUS=$(echo "$RESPONSE" | grep "HTTP_STATUS:" | cut -d':' -f2)
+          echo "==> Finished at $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          echo "==> HTTP status: $HTTP_STATUS"
+          echo "==> Response body:"
+          cat /tmp/response.json || true
 
           if [ -z "$HTTP_STATUS" ] || [ "$HTTP_STATUS" -lt 200 ] || [ "$HTTP_STATUS" -ge 300 ]; then
-            echo "Trend generation failed (HTTP ${HTTP_STATUS:-no response})"
+            echo "::error::Trend generation failed (HTTP ${HTTP_STATUS:-no response})"
             exit 1
           fi
 
-          echo "Trends generated successfully (HTTP $HTTP_STATUS)"
+          echo "==> Trends generated successfully (HTTP $HTTP_STATUS)"
 
       - name: Trigger knowledge graph build
         run: |
-          RESPONSE=$(curl -sS -f \
+          echo "==> Calling $API_BASE_URL/internal/run-graph"
+          echo "==> Started at $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+
+          HTTP_STATUS=$(curl -sS \
             -X POST "${{ secrets.API_BASE_URL }}/internal/run-graph" \
             -H "X-Scheduler-Key: ${{ secrets.SCHEDULER_API_KEY }}" \
             -H "Content-Type: application/json" \
             --max-time 1800 \
-            -w "\nHTTP_STATUS:%{http_code}" \
             --retry 2 \
             --retry-delay 30 \
             --retry-connrefused \
-            2>&1) || EXIT_CODE=$?
+            -o /tmp/response.json \
+            -w "%{http_code}")
 
-          HTTP_STATUS=$(echo "$RESPONSE" | grep "HTTP_STATUS:" | cut -d':' -f2)
+          echo "==> Finished at $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          echo "==> HTTP status: $HTTP_STATUS"
+          echo "==> Response body:"
+          cat /tmp/response.json || true
 
           if [ -z "$HTTP_STATUS" ] || [ "$HTTP_STATUS" -lt 200 ] || [ "$HTTP_STATUS" -ge 300 ]; then
-            echo "Knowledge graph build failed (HTTP ${HTTP_STATUS:-no response})"
+            echo "::error::Knowledge graph build failed (HTTP ${HTTP_STATUS:-no response})"
             exit 1
           fi
 
-          echo "Knowledge graph built successfully (HTTP $HTTP_STATUS)"
+          echo "==> Knowledge graph built successfully (HTTP $HTTP_STATUS)"
 
   run-newsletter:
     if: github.event.schedule == '0 6 * * *' || github.event_name == 'workflow_dispatch'
@@ -95,22 +113,28 @@ jobs:
     steps:
       - name: Trigger newsletter generation
         run: |
-          RESPONSE=$(curl -sS -f \
+          echo "==> Calling $API_BASE_URL/internal/run-newsletter"
+          echo "==> Started at $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+
+          HTTP_STATUS=$(curl -sS \
             -X POST "${{ secrets.API_BASE_URL }}/internal/run-newsletter" \
             -H "X-Scheduler-Key: ${{ secrets.SCHEDULER_API_KEY }}" \
             -H "Content-Type: application/json" \
             --max-time 1800 \
-            -w "\nHTTP_STATUS:%{http_code}" \
             --retry 2 \
             --retry-delay 30 \
             --retry-connrefused \
-            2>&1) || EXIT_CODE=$?
+            -o /tmp/response.json \
+            -w "%{http_code}")
 
-          HTTP_STATUS=$(echo "$RESPONSE" | grep "HTTP_STATUS:" | cut -d':' -f2)
+          echo "==> Finished at $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          echo "==> HTTP status: $HTTP_STATUS"
+          echo "==> Response body:"
+          cat /tmp/response.json || true
 
           if [ -z "$HTTP_STATUS" ] || [ "$HTTP_STATUS" -lt 200 ] || [ "$HTTP_STATUS" -ge 300 ]; then
-            echo "Newsletter generation failed (HTTP ${HTTP_STATUS:-no response})"
+            echo "::error::Newsletter generation failed (HTTP ${HTTP_STATUS:-no response})"
             exit 1
           fi
 
-          echo "Newsletter generated successfully (HTTP $HTTP_STATUS)"
+          echo "==> Newsletter generated successfully (HTTP $HTTP_STATUS)"
