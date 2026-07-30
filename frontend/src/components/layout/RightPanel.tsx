@@ -28,9 +28,7 @@ export async function RightPanel() {
           </h2>
         </div>
         {trends.length === 0 ? (
-          <p className="text-xs text-[var(--text-muted)]">
-            No trends yet. Generate trends from the Trends page.
-          </p>
+          <p className="text-xs text-[var(--text-muted)]">No trends yet.</p>
         ) : (
           <ul className="space-y-2">
             {trends.map((trend, index) => (

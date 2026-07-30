@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.schemas.graph import GraphBuildRequest, GraphBuildResponse, GraphResponse
 from app.services.graph_service import build_graph, get_graph
-from app.api.limiter import limiter
+from app.middleware.limiter import limiter
 from app.core.config import get_settings
 
 settings = get_settings()

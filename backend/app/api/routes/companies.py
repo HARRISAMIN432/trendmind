@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.schemas.company import CompanyProfile, PaginatedCompanies
 from app.services.company_service import generate_company_profile, list_companies
-from app.api.limiter import limiter
+from app.middleware.limiter import limiter
 from app.core.config import get_settings
 
 settings = get_settings()

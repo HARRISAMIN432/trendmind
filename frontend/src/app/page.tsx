@@ -3,6 +3,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Header } from "@/components/layout/Header";
 import { RightPanel } from "@/components/layout/RightPanel";
 import { NewsFeed } from "@/components/NewsFeed";
+import { FloatingChat } from "@/components/FloatingChat";
 import { fetchArticles } from "@/lib/api";
 import { ARTICLES_PER_PAGE } from "@/lib/constants";
 
@@ -38,7 +39,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     <AppShell rightPanel={<RightPanel />}>
       <Header
         title={`${greeting}`}
-        subtitle="Curated AI news from RSS feeds, classified and summarized by a multi-agent pipeline."
+        subtitle="Daily AI intelligence, automated. Classified, summarized, and ready to explore."
         showSearch
       />
       <Suspense
@@ -55,6 +56,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           initialOffset={offset}
         />
       </Suspense>
+      <FloatingChat category={category} />
     </AppShell>
   );
 }

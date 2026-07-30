@@ -25,7 +25,7 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="flex h-full w-64 shrink-0 flex-col border-r border-[var(--border)] bg-[var(--bg-secondary)]">
+    <aside className="fixed inset-y-0 left-0 z-30 flex h-screen w-64 shrink-0 flex-col overflow-y-auto border-r border-[var(--border)] bg-[var(--bg-secondary)]">
       <div className="flex items-center gap-3 border-b border-[var(--border)] px-5 py-5">
         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--accent)]">
           <Sparkles className="h-5 w-5 text-white" />
@@ -34,7 +34,9 @@ export function Sidebar() {
           <p className="text-sm font-semibold text-[var(--text-primary)]">
             TrendMind
           </p>
-          <p className="text-xs text-[var(--text-muted)]">AI News Intelligence</p>
+          <p className="text-xs text-[var(--text-muted)]">
+            AI News Intelligence
+          </p>
         </div>
       </div>
 
@@ -62,21 +64,6 @@ export function Sidebar() {
           );
         })}
       </nav>
-
-      <div className="border-t border-[var(--border)] p-4">
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-tertiary)] p-4">
-          <div className="mb-2 flex items-center gap-2">
-            <GitBranch className="h-4 w-4 text-[var(--accent)]" />
-            <p className="text-xs font-medium text-[var(--text-primary)]">
-              Multi-Agent Pipeline
-            </p>
-          </div>
-          <p className="text-xs leading-relaxed text-[var(--text-muted)]">
-            LangGraph ingestion, RAG chat, and semantic search over curated AI
-            news.
-          </p>
-        </div>
-      </div>
     </aside>
   );
 }

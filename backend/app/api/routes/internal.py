@@ -129,25 +129,6 @@ def trigger_pipeline(db: Session = Depends(get_db)) -> dict:
     state = run_pipeline(existing_urls=existing_urls)
     articles = state.get("articles", []) if isinstance(state, dict) else getattr(state, "articles", [])
 
-    # DEBUG: what keys/counts did the pipeline actually return? Helps tell
-    # whether an upstream stage (embed/summarize) silently produced empty
-    # results vs. the data existing but getting lost later in this file.
-    if isinstance(state, dict):
-        logger.warning(
-            "PIPELINE STATE KEYS: %s | articles_out=%d collector_errors=%d "
-            "cleaner_errors=%d classification_errors=%d summarization_errors=%d "
-            "embedding_errors=%d duplicate_count=%s",
-            list(state.keys()), len(articles),
-            len(state.get("collector_errors", [])),
-            len(state.get("cleaner_errors", [])),
-            len(state.get("classification_errors", [])),
-            len(state.get("summarization_errors", [])),
-            len(state.get("embedding_errors", [])),
-            state.get("duplicate_count", "n/a"),
-        )
-    else:
-        logger.warning("PIPELINE STATE is not a dict (type=%s), articles_out=%d", type(state), len(articles))
-
     stored = skipped = failed = 0
     for article in articles:
         try:

@@ -24,12 +24,6 @@ def _get_recent_articles_for_extraction(db: Session, days: int) -> list[Article]
 def _get_or_create_node(
     db: Session, cache: dict[tuple[str, str], GraphNode], name: str, type_: str
 ) -> GraphNode:
-    """
-    Dedup key is (name lowercased+stripped, type) - same entity mentioned under
-    slightly different casing across articles collapses into one node. Type is
-    compared case-sensitively (not normalized), so callers should stick to the
-    ENTITY_TYPES constants rather than free-text casing variants.
-    """
     key = (name.strip().lower(), type_)
     if key in cache:
         return cache[key]
@@ -49,20 +43,6 @@ def _get_or_create_node(
 
 
 def build_graph(db: Session, days: int = 30) -> tuple[int, int, int, list[str]]:
-    """
-    Runs entity extraction over recent canonical articles with clean_content, upserting
-    GraphNode/GraphEdge rows. Returns (articles_processed, nodes_created, edges_created, errors).
-
-    Fail-soft per article (same pattern as M02-M07's node functions): an extraction
-    failure on one article is recorded in `errors` and skipped, never raises and never
-    aborts the rest of the batch.
-
-    No dedup-across-runs check beyond the node/edge uniqueness constraints themselves -
-    running this twice over overlapping windows re-extracts already-seen articles, but
-    since nodes/edges are upserted by (name,type) / (source,target,relation), re-running
-    is idempotent rather than creating duplicate graph data (unlike M12's trend
-    generation, which has no such protection).
-    """
     articles = _get_recent_articles_for_extraction(db, days)
     node_cache: dict[tuple[str, str], GraphNode] = {}
     nodes_before = db.query(GraphNode).count()
@@ -85,11 +65,6 @@ def build_graph(db: Session, days: int = 30) -> tuple[int, int, int, list[str]]:
             source_type = entity_type_by_name.get(rel.source.strip().lower())
             target_type = entity_type_by_name.get(rel.target.strip().lower())
             if source_type is None or target_type is None:
-                # LLM referenced a source/target not present in its own entities list for
-                # this article - skip rather than guess a type for a node we can't
-                # otherwise place. This is the enforcement point for the prompt's
-                # "must match a name in entities" instruction, since the LLM's structured
-                # output isn't otherwise validated against itself.
                 continue
 
             source_node = _get_or_create_node(db, node_cache, rel.source, source_type)
@@ -119,9 +94,6 @@ def build_graph(db: Session, days: int = 30) -> tuple[int, int, int, list[str]]:
 
 
 def get_graph(db: Session) -> GraphResponse:
-    """The one sanctioned way to serialize the full graph - GET /graph returns
-    everything in one shot (no pagination), fine at portfolio scale (low hundreds of
-    nodes/edges at most)."""
     nodes = db.query(GraphNode).all()
     edges = db.query(GraphEdge).all()
     return GraphResponse(

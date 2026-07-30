@@ -30,8 +30,7 @@ def semantic_search(
     query_embedding = model.embed_query(query)
 
     where = {"category": category} if category else None
-    # Over-fetch: some hits may be filtered out below (duplicates, stale ids),
-    # so we ask Chroma for more than n_results to still land on a full page.
+    
     raw_hits = query_similar_with_scores(
         vectorstore, query_embedding, n_results=n_results * 3, where=where
     )
@@ -50,10 +49,10 @@ def semantic_search(
     articles_by_embedding_id = {a.embedding_id: a for a in articles}
 
     hits: list[SearchHit] = []
-    for embedding_id in ids:  # preserve Chroma's relevance ordering
+    for embedding_id in ids: 
         article = articles_by_embedding_id.get(embedding_id)
         if article is None:
-            continue  # stale Chroma vector with no matching DB row
+            continue  
         if not include_duplicates and article.duplicate_of_id is not None:
             continue
         hits.append(SearchHit(article=article, score=score_by_id[embedding_id]))

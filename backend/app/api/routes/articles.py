@@ -8,7 +8,7 @@ from app.models.company import Company
 from app.schemas.article import (
     ArticleListItem, ArticleDetail, ArticleCreate, ArticleUpdate, PaginatedArticles,
 )
-from app.api.limiter import limiter
+from app.middleware.limiter import limiter
 from app.core.config import get_settings
 
 settings = get_settings()

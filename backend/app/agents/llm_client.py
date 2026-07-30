@@ -63,15 +63,6 @@ def _get_gemini_chat(schema: Type[T], key: str):
 
 
 def run_structured(prompt: str, schema: Type[T]) -> Tuple[Optional[T], Optional[LLMCallError]]:
-    """
-    Run structured LLM call with sequential key failover.
-    
-    Strategy:
-    1. Use current Groq key
-    2. If it fails, mark it as failed and move to next Groq key
-    3. If all Groq keys fail, fall back to Google keys (same strategy)
-    4. If all keys fail, return error
-    """
     settings = get_settings()
     
     # === TRY GROQ KEYS SEQUENTIALLY ===

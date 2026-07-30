@@ -5,10 +5,10 @@ from slowapi.errors import RateLimitExceeded
 from slowapi import _rate_limit_exceeded_handler
 
 from app.core.config import get_settings
-from app.api.limiter import limiter
+from app.middleware.limiter import limiter
 from app.api.routes import (
     articles, search, chat, trends, companies, graph,
-    newsletter, recommendations, internal, health,
+    newsletter, recommendations, internal,
 )
 from app.scheduler import start_scheduler, shutdown_scheduler
 
@@ -39,11 +39,7 @@ app.add_middleware(
 )
 
 # --- Include Routers ---
-# Internal routes first (exempt from rate limiting)
 app.include_router(internal.router)
-# Health check route
-app.include_router(health.router)
-# Public routes (rate-limited)
 app.include_router(articles.router)
 app.include_router(search.router)
 app.include_router(chat.router)

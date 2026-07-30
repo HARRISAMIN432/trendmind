@@ -14,7 +14,7 @@ from app.services.newsletter_service import (
     get_newsletter_by_date,
     list_newsletters,
 )
-from app.api.limiter import limiter
+from app.middleware.limiter import limiter
 from app.core.config import get_settings
 
 settings = get_settings()

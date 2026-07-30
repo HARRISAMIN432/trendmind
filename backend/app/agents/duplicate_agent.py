@@ -66,8 +66,10 @@ class DeduplicatedArticle:
         )
 
 
-def cosine_similarity(vec_a: list[float], vec_b: list[float]) -> float:
-    if not vec_a or not vec_b or len(vec_a) != len(vec_b):
+def cosine_similarity(vec_a, vec_b) -> float:
+    if vec_a is None or vec_b is None:
+        return 0.0
+    if len(vec_a) == 0 or len(vec_b) == 0 or len(vec_a) != len(vec_b):
         return 0.0
 
     dot = sum(a * b for a, b in zip(vec_a, vec_b))

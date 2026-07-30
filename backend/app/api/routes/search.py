@@ -6,7 +6,7 @@ from app.db.session import get_db
 from app.schemas.search import SearchResponse, SearchResultItem
 from app.schemas.article import ArticleListItem
 from app.services.search_service import semantic_search
-from app.api.limiter import limiter
+from app.middleware.limiter import limiter
 from app.core.config import get_settings
 
 settings = get_settings()
