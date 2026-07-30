@@ -33,7 +33,7 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 EMBEDDING_MODEL_NAME = "models/gemini-embedding-001"
-EMBEDDING_DIMENSIONS = 32
+EMBEDDING_DIMENSIONS = 784
 
 _google_embedding_key_manager: Optional[SequentialKeyManager] = None
 
@@ -59,7 +59,7 @@ def _build_embedding_model(key: str):
         _embedding_model_cache[key] = GoogleGenerativeAIEmbeddings(
             model=EMBEDDING_MODEL_NAME,
             google_api_key=key,
-            dimensions=EMBEDDING_DIMENSIONS,
+            output_dimensionality=EMBEDDING_DIMENSIONS,
         )
     return _embedding_model_cache[key]
 
