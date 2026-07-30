@@ -104,7 +104,7 @@ class TestRenderMarkdown:
 
     def test_output_starts_with_digest_title(self):
         md = newsletter_service._render_markdown(date(2026, 7, 27), [], None)
-        assert md.startswith("# TrendMind Daily Digest — 2026-07-27")
+        assert md.startswith("# DigestAI Daily Digest — 2026-07-27")
 
     def test_missing_summary_falls_back_to_placeholder_text(self):
         article = _article(summary_short=None)

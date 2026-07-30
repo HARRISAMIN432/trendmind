@@ -1,4 +1,4 @@
-# TrendMind — AI News Intelligence Platform
+# DigestAI — AI News Intelligence Platform
 
 A multi-agent AI news intelligence platform: it collects AI news from RSS feeds, cleans and deduplicates it, classifies and summarizes it with an LLM, embeds it for semantic search, and exposes all of that through a RAG chat interface, trend/knowledge-graph analysis, and a Next.js frontend — built entirely on free-tier infrastructure.
 
@@ -32,7 +32,7 @@ RSS feeds → Collector → Cleaner → Classifier → Summarizer → Embedder �
                                     trends, company profiles, knowledge graph)
 ```
 
-## Tech stack (zero paid APIs)
+## Tech stack
 
 | Layer         | Choice                                                |
 | ------------- | ----------------------------------------------------- |

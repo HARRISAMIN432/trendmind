@@ -1,4 +1,3 @@
-# TrendMind backend — production image for Render (or any Docker host)
 FROM python:3.11-slim AS base
 
 # Prevent .pyc files, force stdout/stderr to be unbuffered (so Render logs show up live)

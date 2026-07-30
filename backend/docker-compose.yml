@@ -5,12 +5,12 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: trendmind-backend
+    container_name: digestai-backend
     ports:
       - "8000:8000"
     environment:
       # --- App ---
-      - APP_NAME=${APP_NAME:-TrendMind}
+      - APP_NAME=${APP_NAME:-DigestAI}
       - ENVIRONMENT=${ENVIRONMENT:-production}
 
       # --- Database (Neon Postgres) ---

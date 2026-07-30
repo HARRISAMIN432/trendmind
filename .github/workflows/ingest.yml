@@ -1,4 +1,4 @@
-name: TrendMind Scheduled Jobs
+name: DigestAI Scheduled Jobs
 
 on:
   schedule:

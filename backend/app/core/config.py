@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     )
 
     # --- App ---
-    APP_NAME: str = "TrendMind"
+    APP_NAME: str = "DigestAI"
     ENVIRONMENT: str = "development"  # M22: "development" | "production"
 
     # --- Database (Neon Postgres — required) ---

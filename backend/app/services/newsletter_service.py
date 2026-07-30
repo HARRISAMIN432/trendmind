@@ -67,7 +67,7 @@ def _get_biggest_trend(db: Session, window_start: datetime, window_end: datetime
 def _render_markdown(
     digest_date: date_type, top_stories: Sequence[Article], trend: Trend | None
 ) -> str:
-    lines: list[str] = [f"# TrendMind Daily Digest — {digest_date.isoformat()}", ""]
+    lines: list[str] = [f"# DigestAI Daily Digest — {digest_date.isoformat()}", ""]
 
     lines.append("## Top Stories")
     lines.append("")

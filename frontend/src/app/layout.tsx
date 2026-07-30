@@ -14,11 +14,22 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "TrendMind — AI News Intelligence",
-    template: "%s | TrendMind",
+    default: "DigestAI — AI News Intelligence",
+    template: "%s | DigestAI",
   },
   description:
     "Multi-agent AI news intelligence platform with semantic search, RAG chat, and trend analysis.",
+  icons: {
+    icon: "/logo.png",
+    shortcut: "/logo.png",
+    apple: "/logo.png",
+  },
+  openGraph: {
+    title: "DigestAI — AI News Intelligence",
+    description:
+      "Multi-agent AI news intelligence platform with semantic search, RAG chat, and trend analysis.",
+    images: ["/logo.png"],
+  },
 };
 
 export default function RootLayout({

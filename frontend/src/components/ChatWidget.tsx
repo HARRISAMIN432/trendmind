@@ -6,6 +6,7 @@ import { Loader2, MessageSquare, Send, Sparkles } from "lucide-react";
 import { sendChatMessage } from "@/lib/api";
 import type { ChatCitation, ChatTurn } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
 
 interface ChatWidgetProps {
   category?: string | null;
@@ -59,12 +60,18 @@ export function ChatWidget({ category, compact = false }: ChatWidgetProps) {
       )}
     >
       <div className="flex items-center gap-2 border-b border-[var(--border)] px-4 py-3">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--accent)]">
-          <Sparkles className="h-4 w-4 text-white" />
+        <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg bg-[var(--accent)]">
+          <Image
+            src="/logo.png"
+            alt="DigestAI"
+            width={32}
+            height={32}
+            className="h-full w-full object-cover"
+          />
         </div>
         <div>
           <p className="text-sm font-semibold text-[var(--text-primary)]">
-            Ask TrendMind
+            Ask DigestAI
           </p>
           <p className="text-xs text-[var(--text-muted)]">
             Chat with your news corpus via RAG
@@ -106,9 +113,7 @@ export function ChatWidget({ category, compact = false }: ChatWidgetProps) {
           </div>
         )}
 
-        {error && (
-          <p className="text-sm text-red-400">{error}</p>
-        )}
+        {error && <p className="text-sm text-red-400">{error}</p>}
       </div>
 
       {citations.length > 0 && (

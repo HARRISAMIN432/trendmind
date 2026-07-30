@@ -50,12 +50,6 @@ def route_node(state: ChatState) -> ChatState:
 
 
 def retrieve_and_grade_node(state: ChatState) -> ChatState:
-    """Retrieve candidate articles, then score each one's relevance to the question.
-
-    Docs scoring below RELEVANCE_THRESHOLD are dropped from `hits` before
-    generation. If nothing clears the bar, docs_match is False and the
-    no-match fallback fires.
-    """
     hits = semantic_search(
         db=state["db"],
         query=state["question"],
