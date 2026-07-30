@@ -74,7 +74,7 @@ export function ChatWidget({ category, compact = false }: ChatWidgetProps) {
             Ask DigestAI
           </p>
           <p className="text-xs text-[var(--text-muted)]">
-            Chat with your news corpus via RAG
+            Chat with your news corpus
           </p>
         </div>
       </div>

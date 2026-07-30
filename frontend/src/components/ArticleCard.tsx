@@ -20,7 +20,10 @@ export function ArticleCard({ article, score }: ArticleCardProps) {
             </span>
           )}
           {article.source_name && <span>·</span>}
-          <time dateTime={article.published_at ?? undefined}>
+          <time
+            dateTime={article.published_at ?? undefined}
+            suppressHydrationWarning
+          >
             {formatRelativeTime(article.published_at)}
           </time>
           {score !== undefined && (
@@ -46,9 +49,7 @@ export function ArticleCard({ article, score }: ArticleCardProps) {
       )}
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
-        {article.category && (
-          <Badge variant="accent">{article.category}</Badge>
-        )}
+        {article.category && <Badge variant="accent">{article.category}</Badge>}
         {article.sub_category && (
           <Badge variant="outline">{article.sub_category}</Badge>
         )}

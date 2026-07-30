@@ -6,12 +6,12 @@ from sqlalchemy.orm import Session
 from app.agents.llm_client import run_structured
 from app.agents.prompts.chat_prompt import CHAT_SYSTEM_PROMPT, ChatAnswer, build_chat_prompt
 from app.agents.prompts.chat_prompt import (
-    ROUTE_SYSTEM_PROMPT,      
-    RouteDecision,           
-    GRADE_SYSTEM_PROMPT,      
-    RetrievalGrade,          
-    build_route_prompt,       
-    build_grade_prompt,       
+    ROUTE_SYSTEM_PROMPT,      # new - see prompt additions below
+    RouteDecision,            # new - see schema additions below
+    GRADE_SYSTEM_PROMPT,      # new - see prompt additions below
+    RetrievalGrade,           # new - see schema additions below
+    build_route_prompt,       # new
+    build_grade_prompt,       # new
 )
 
 RELEVANCE_THRESHOLD = 0.7
@@ -28,15 +28,40 @@ class ChatState(TypedDict, total=False):
     category: str | None
 
     needs_retrieval: bool
-    hits: list                       
+    hits: list                       # SearchHit objects from semantic_search
     docs_match: bool
 
     answer_text: str
     citations: list[ChatCitation]
     context_article_count: int
 
+
+# ---------------------------------------------------------------------------
+# Nodes
+# ---------------------------------------------------------------------------
+
+import logging
+
+logger = logging.getLogger("digestai.rag")
+
+_TRIVIAL_MESSAGES = {
+    "hey", "hi", "hello", "yo", "sup", "hiya", "howdy",
+    "hey there", "hi there", "good morning", "good evening", "good afternoon",
+    "thanks", "thank you", "ok", "okay", "cool", "nice",
+}
+
+
 def route_node(state: ChatState) -> ChatState:
     """Decide whether this question needs corpus retrieval at all."""
+    question_normalized = state["question"].strip().lower()
+
+    # Deterministic short-circuit: don't trust an LLM judgment call on
+    # content-free input. This is what let "hey" reach retrieval before.
+    if question_normalized in _TRIVIAL_MESSAGES or len(question_normalized) <= 3:
+        logger.info("route_node: short-circuit, question=%r -> needs_retrieval=False", state["question"])
+        state["needs_retrieval"] = False
+        return state
+
     prompt = build_route_prompt(
         question=state["question"],
         history=state.get("history"),
@@ -44,12 +69,21 @@ def route_node(state: ChatState) -> ChatState:
     full_prompt = f"{ROUTE_SYSTEM_PROMPT}\n\n{prompt}"
     result, error = run_structured(full_prompt, RouteDecision)
 
+    # Fail open toward retrieval - if the router itself fails, better to
+    # attempt a grounded answer than to silently skip the corpus.
     needs_retrieval = result.needs_retrieval if result is not None else True
+    logger.info("route_node: question=%r needs_retrieval=%s", state["question"], needs_retrieval)
     state["needs_retrieval"] = needs_retrieval
     return state
 
 
 def retrieve_and_grade_node(state: ChatState) -> ChatState:
+    """Retrieve candidate articles, then score each one's relevance to the question.
+
+    Docs scoring below RELEVANCE_THRESHOLD are dropped from `hits` before
+    generation. If nothing clears the bar, docs_match is False and the
+    no-match fallback fires.
+    """
     hits = semantic_search(
         db=state["db"],
         query=state["question"],
@@ -58,6 +92,17 @@ def retrieve_and_grade_node(state: ChatState) -> ChatState:
     )
 
     if not hits:
+        state["hits"] = []
+        state["docs_match"] = False
+        return state
+
+    # Raw-similarity floor: if the embedding search itself came back with
+    # near-zero or negative cosine similarity, the corpus genuinely has
+    # nothing close to this query - don't even bother asking the grading
+    # LLM, which can be unreliable on a weak/ambiguous candidate set.
+    hits = [h for h in hits if h.score >= 0.2]
+    if not hits:
+        logger.info("retrieve_and_grade_node: all hits below raw similarity floor, question=%r", state["question"])
         state["hits"] = []
         state["docs_match"] = False
         return state
@@ -76,12 +121,16 @@ def retrieve_and_grade_node(state: ChatState) -> ChatState:
     result, error = run_structured(full_prompt, RetrievalGrade)
 
     if result is None:
-        # Fail open - grading unavailable, keep everything and let generation proceed.
-        state["hits"] = hits
-        state["docs_match"] = True
+        # Fail CLOSED here - if grading is unavailable, we cannot verify
+        # relevance, so don't hand ungraded docs to generation. Better to
+        # give a no-match answer than risk citing irrelevant articles.
+        logger.warning("retrieve_and_grade_node: grading call failed, failing closed. question=%r", state["question"])
+        state["hits"] = []
+        state["docs_match"] = False
         return state
 
     score_by_url = {s.url: s.relevance_score for s in result.scores}
+    logger.info("retrieve_and_grade_node: scores=%s", score_by_url)
     filtered_hits = [h for h in hits if score_by_url.get(h.article.url, 0.0) >= RELEVANCE_THRESHOLD]
 
     state["hits"] = filtered_hits
@@ -163,15 +212,17 @@ def generate_grounded_node(state: ChatState) -> ChatState:
             relevance_score=score_by_url[url],
         ))
 
-    if not citations:
-        citations = [
-            ChatCitation(article=ArticleListItem.from_orm_article(h.article), relevance_score=h.score)
-            for h in hits
-        ]
-
+    # No fallback here on purpose - if the LLM cited nothing, show nothing.
+    # Falling back to "all filtered hits" would surface docs the model never
+    # actually used, which is misleading in the sources panel.
     state["citations"] = citations
     state["context_article_count"] = len(hits)
     return state
+
+
+# ---------------------------------------------------------------------------
+# Conditional edges
+# ---------------------------------------------------------------------------
 
 def route_decision(state: ChatState) -> Literal["retrieve", "direct"]:
     return "retrieve" if state["needs_retrieval"] else "direct"
@@ -179,6 +230,11 @@ def route_decision(state: ChatState) -> Literal["retrieve", "direct"]:
 
 def grade_decision(state: ChatState) -> Literal["generate", "no_match"]:
     return "generate" if state["docs_match"] else "no_match"
+
+
+# ---------------------------------------------------------------------------
+# Graph assembly (built once, module-level)
+# ---------------------------------------------------------------------------
 
 def _build_graph():
     graph = StateGraph(ChatState)
@@ -210,6 +266,11 @@ def _build_graph():
 
 
 _chat_graph = _build_graph()
+
+
+# ---------------------------------------------------------------------------
+# Public entrypoint - same signature as before, drop-in replacement
+# ---------------------------------------------------------------------------
 
 def answer_chat_question(
     db: Session,

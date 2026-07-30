@@ -39,7 +39,7 @@ services:
 
       # --- Model Configuration ---
       - GROQ_MODEL=${GROQ_MODEL:-llama-3.3-70b-versatile}
-      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.0-flash}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-3.0-flash}
 
       # --- LangSmith (optional) ---
       - LANGCHAIN_TRACING_V2=${LANGCHAIN_TRACING_V2:-false}

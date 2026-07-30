@@ -7,8 +7,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# System deps needed by: psycopg2 (postgres), trafilatura/lxml (HTML parsing),
-# sentence-transformers/torch (CPU wheels still need build-essential on slim images)
+# System deps needed by: psycopg2 (postgres), trafilatura/lxml (HTML parsing)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
@@ -21,14 +20,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Pre-download the sentence-transformers embedding model at build time so the
-# first request in production doesn't pay a ~90MB download + cold-start cost.
-# Wrapped in try/except + `|| true` so a Hugging Face Hub hiccup at build time
-# can't block the whole deploy — worst case it just downloads lazily on first use.
-RUN python -c "\
-from sentence_transformers import SentenceTransformer; \
-SentenceTransformer('all-MiniLM-L6-v2'); \
-print('Embedding model cached.')" || echo "Embedding model pre-cache skipped (will lazy-load on first request)"
+# Embeddings now go through Google's GoogleGenerativeAIEmbeddings API (see
+# app/agents/embed_article.py), so there is no local model to pre-download —
+# nothing to cache at build time.
 
 # Alembic migrations run as a Render "pre-deploy" / release command, not baked into
 # the image start — see render.yaml's preDeployCommand. Keeping migration and boot

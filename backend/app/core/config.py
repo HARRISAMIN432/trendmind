@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     CHROMA_DATABASE: str = "trendmind"
     
     GROQ_MODEL: str = "llama-3.3-70b-versatile"
-    GEMINI_MODEL: str = "gemini-2.0-flash"
+    GEMINI_MODEL: str = "gemini-3.0-flash"
 
     # --- Parsed key lists (populated in model_post_init) ---
     GROQ_API_KEYS: List[str] = []
