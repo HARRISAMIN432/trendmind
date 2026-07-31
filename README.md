@@ -44,7 +44,7 @@ RSS feeds → Collector → Cleaner → Classifier → Summarizer → Embedder �
 | Backend       | FastAPI + SQLAlchemy 2.0 + Alembic                    |
 | Frontend      | Next.js + Tailwind                                    |
 | Scheduling    | APScheduler (dev) or GitHub Actions cron (production) |
-| Deployment    | Backend → Render (Docker); Frontend → Vercel          |
+| Deployment    | Backend → AWS (Docker); Frontend → Vercel             |
 
 ## Project status
 
@@ -68,15 +68,15 @@ uvicorn app.main:app --reload
 ```bash
 cd frontend
 npm install
-cp .env.example .env.local   # NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+cp .env.example .env.local
 npm run dev
 ```
 
 ## Deployment
 
-- **Backend (Render):** this repo includes a `render.yaml` blueprint and `backend/Dockerfile`. Connect the repo as a Render Blueprint, then set the secret env vars (`DATABASE_URL`, `GROQ_API_KEY`, `GEMINI_API_KEY`, `SCHEDULER_API_KEY`) in the dashboard — they're intentionally left unset in `render.yaml`.
-- **Frontend (Vercel):** import the repo, set the root directory to `frontend/`, and set `NEXT_PUBLIC_API_BASE_URL` to the deployed Render URL. `frontend/vercel.json` handles build settings and basic security headers.
-- **Scheduled ingestion in production:** Render's free tier spins the service down after ~15 min idle, so the in-process APScheduler (`ENABLE_SCHEDULER`) is left **off** in production. `.github/workflows/ingest.yml` (from M21) hits the deployed API's `/internal/*` endpoints on a cron schedule instead, which also wakes the free-tier dyno back up. Requires the `API_BASE_URL` and `SCHEDULER_API_KEY` repo secrets.
+- **Backend (AWS, Docker):** built and run from `backend/Dockerfile`. Set the secret env vars (`DATABASE_URL`, `GROQ_API_KEY`, `GEMINI_API_KEY`, `SCHEDULER_API_KEY`) via your AWS environment/secrets configuration rather than committing them.
+- **Frontend (Vercel):** import the repo, set the root directory to `frontend/`, and set `NEXT_PUBLIC_API_BASE_URL` to the deployed AWS backend URL. `frontend/vercel.json` handles build settings and basic security headers.
+- **Scheduled ingestion in production:** the in-process APScheduler (`ENABLE_SCHEDULER`) is left **off** in production. `.github/workflows/ingest.yml` (from M21) hits the deployed API's `/internal/*` endpoints on a cron schedule instead. Requires the `API_BASE_URL` and `SCHEDULER_API_KEY` repo secrets.
 - **CORS/rate limiting:** production origins are locked down via `ALLOWED_ORIGINS`; public-facing endpoints are rate-limited via `RATE_LIMIT_PER_MINUTE`. See `backend/app/main_additions_m22.py` for the exact wiring.
 
 ## What I learned
@@ -93,5 +93,4 @@ _A few prompts to fill this in yourself, since it should be in your own voice fo
 backend/     FastAPI app, LangGraph pipeline, agents, models, migrations
 frontend/    Next.js app (feed, search, chat, trends, companies, graph)
 .github/     CI + scheduled ingestion workflows
-render.yaml  Render deployment blueprint
 ```

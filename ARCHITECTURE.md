@@ -109,10 +109,13 @@ GitHub repo
    ├── push to master ──▶ Vercel ──▶ frontend (static + SSR)
    │                                     │
    │                                     ▼ calls
-   ├── Render Blueprint ──▶ Docker build ──▶ backend (FastAPI) ──▶ Neon Postgres
+   ├── GitHub Actions (or manual) ──▶ Docker build ──▶ push image
+   │                                     │
+   │                                     ▼
+   │                              AWS (ECS/EC2 — Docker container) ──▶ backend (FastAPI) ──▶ Neon Postgres
    │                                              ▲
-   └── GitHub Actions cron ──▶ POST /internal/run-pipeline (wakes free-tier dyno,
-                                drives scheduled ingestion in production)
+   └── GitHub Actions cron ──▶ POST /internal/run-pipeline (drives scheduled
+                                ingestion in production)
 ```
 
 ## Scheduling
