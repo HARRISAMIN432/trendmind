@@ -15,10 +15,7 @@ langchain-groq
 langchain-google-genai
 langchain-openai
 pydantic
-sentence-transformers
-langchain-huggingface
 langchain-chroma
 chromadb
 langgraph
 apscheduler
-fastembed
