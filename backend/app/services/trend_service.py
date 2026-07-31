@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session, joinedload
 
 from app.agents.duplicate_agent import cosine_similarity
-from app.agents.embedding_agent import get_embedding_model
+from app.agents.embedding_agent import get_embedding_function
 from app.agents.llm_client import run_structured
 from app.agents.prompts.trend_prompt import TREND_SYSTEM_PROMPT, TrendSummary, build_trend_prompt
 from app.models.article import Article
@@ -35,7 +35,7 @@ def _cluster_articles(
     for article in articles:
         emb = embeddings_by_article_id.get(article.id)
         if emb is None:
-            continue 
+            continue
 
         placed = False
         for cluster in clusters:
@@ -81,7 +81,7 @@ def generate_trends(
         return [], 0, 0
 
     embedding_ids = [a.embedding_id for a in articles]
-    vectorstore = get_vectorstore(get_embedding_model())
+    vectorstore = get_vectorstore(get_embedding_function())
     embeddings_by_chroma_id = get_embeddings_by_ids(vectorstore, embedding_ids)
     embeddings_by_article_id = {
         a.id: embeddings_by_chroma_id[a.embedding_id]

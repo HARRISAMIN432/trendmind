@@ -65,31 +65,7 @@ def _get_gemini_chat(schema: Type[T], key: str):
 def run_structured(prompt: str, schema: Type[T]) -> Tuple[Optional[T], Optional[LLMCallError]]:
     settings = get_settings()
 
-    # === TRY GOOGLE (GEMINI) KEYS SEQUENTIALLY (preferred provider) ===
-    google_manager = _get_google_manager()
-
-    while google_manager.has_keys and google_manager.get_current_key():
-        current_key = google_manager.get_current_key()
-        key_short = google_manager.current_key_short
-
-        try:
-            logger.info(f"Attempting Google call with key: {key_short} (remaining: {google_manager.remaining_keys})")
-            chat = _get_gemini_chat(schema, current_key)
-            result = chat.invoke(prompt)
-
-            if result is not None:
-                logger.info(f"Google call succeeded with key: {key_short}")
-                return result, None
-
-        except Exception as e:
-            logger.warning(f"Google key {key_short} failed: {e}")
-            google_manager.mark_current_key_failed()
-            logger.info(f"Switched to next Google key (remaining: {google_manager.remaining_keys})")
-            continue
-
-    logger.warning("All Google keys exhausted. Falling back to Groq keys.")
-
-    # === TRY GROQ KEYS SEQUENTIALLY (fallback provider) ===
+    # === TRY GROQ KEYS SEQUENTIALLY (preferred provider) ===
     groq_manager = _get_groq_manager()
 
     while groq_manager.has_keys and groq_manager.get_current_key():
@@ -111,9 +87,33 @@ def run_structured(prompt: str, schema: Type[T]) -> Tuple[Optional[T], Optional[
             logger.info(f"Switched to next Groq key (remaining: {groq_manager.remaining_keys})")
             continue
 
+    logger.warning("All Groq keys exhausted. Falling back to Google keys.")
+
+    # === TRY GOOGLE (GEMINI) KEYS SEQUENTIALLY (fallback provider) ===
+    google_manager = _get_google_manager()
+
+    while google_manager.has_keys and google_manager.get_current_key():
+        current_key = google_manager.get_current_key()
+        key_short = google_manager.current_key_short
+
+        try:
+            logger.info(f"Attempting Google call with key: {key_short} (remaining: {google_manager.remaining_keys})")
+            chat = _get_gemini_chat(schema, current_key)
+            result = chat.invoke(prompt)
+
+            if result is not None:
+                logger.info(f"Google call succeeded with key: {key_short}")
+                return result, None
+
+        except Exception as e:
+            logger.warning(f"Google key {key_short} failed: {e}")
+            google_manager.mark_current_key_failed()
+            logger.info(f"Switched to next Google key (remaining: {google_manager.remaining_keys})")
+            continue
+
     return None, LLMCallError(
         stage="no_provider",
-        message="All Google and Groq API keys exhausted or invalid."
+        message="All Groq and Google API keys exhausted or invalid."
     )
 
 

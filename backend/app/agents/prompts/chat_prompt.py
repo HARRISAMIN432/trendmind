@@ -118,7 +118,26 @@ Be strict by default. A tangentially related article (same industry, different s
 
 Return exactly one score per article in the order given, matched by URL."""
 
+class QueryRewrite(BaseModel):
+    rewritten_query: str = Field(
+        description="Expanded search query with related keywords, entities, and synonyms"
+    )
 
+REWRITE_SYSTEM_PROMPT = """You rewrite short or ambiguous user search queries into \
+richer queries for semantic (embedding-based) retrieval over a corpus of AI news articles.
+
+Rules:
+- Expand product/model names with their parent company, related products, and common aliases.
+  e.g. "gpt-5" -> "GPT-5 OpenAI ChatGPT large language model release"
+  e.g. "claude" -> "Claude Anthropic AI assistant model"
+- Keep it a natural search phrase, not a question, not a list.
+- Don't invent facts not implied by the query - only add well-known associated entities.
+- If the query is already descriptive/long, keep it mostly as-is with minor expansion.
+- Output ONLY the rewritten query text, nothing else."""
+
+def build_rewrite_prompt(query: str) -> str:
+    return f"User query: {query}"                 
+     
 def build_grade_prompt(question: str, context_articles: list[dict]) -> str:
     articles_text = "\n\n".join(
         f"[{i+1}] url: {a['url']}\ntitle: {a['title']}\n"

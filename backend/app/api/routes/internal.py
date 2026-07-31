@@ -98,6 +98,7 @@ def _article_to_create_payload(db: Session, article) -> ArticleCreate:
 
 @router.post("/run-pipeline", dependencies=[Depends(_require_scheduler_key)])
 def trigger_pipeline(db: Session = Depends(get_db)) -> dict:
+    print("I have arrived")
     existing_urls = {row[0] for row in db.query(Article.url).all()}
     state = run_pipeline(existing_urls=existing_urls)
     articles = state.get("articles", []) if isinstance(state, dict) else getattr(state, "articles", [])

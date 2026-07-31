@@ -27,6 +27,7 @@ venv.bak/
 # Temporary files
 *.tmp
 *.temp
+test.txt
 
 # Environment variables
 .env.*

@@ -1,11 +1,10 @@
 from __future__ import annotations
+import gc
 import hashlib
 import logging
 from dataclasses import asdict, dataclass
 from typing import Any, Optional
-from app.vectorstore.chroma_client import get_vectorstore, upsert_embeddings
-from app.core.config import get_settings
-from app.agents.key_manager import SequentialKeyManager
+from app.vectorstore.chroma_client import get_vectorstore, upsert_embeddings, FastEmbedWrapper
 
 try:
     from app.agents.summarization_agent import SummarizedArticle
@@ -32,44 +31,35 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-EMBEDDING_MODEL_NAME = "models/gemini-embedding-001"
-EMBEDDING_DIMENSIONS = 768
+EMBEDDING_MODEL_NAME = "d"
+EMBEDDING_DIMENSIONS = 384
 
-_google_embedding_key_manager: Optional[SequentialKeyManager] = None
-
-_embedding_model_cache: dict[str, Any] = {}
-
-
-def _get_google_embedding_manager() -> SequentialKeyManager:
-    global _google_embedding_key_manager
-    if _google_embedding_key_manager is None:
-        settings = get_settings()
-        _google_embedding_key_manager = SequentialKeyManager(settings.GOOGLE_API_KEYS)
-        logger.info(
-            f"Google embedding key manager initialized with "
-            f"{len(_google_embedding_key_manager.keys)} keys"
-        )
-    return _google_embedding_key_manager
-
-
-def _build_embedding_model(key: str):
-    if key not in _embedding_model_cache:
-        from langchain_google_genai import GoogleGenerativeAIEmbeddings
-
-        _embedding_model_cache[key] = GoogleGenerativeAIEmbeddings(
-            model=EMBEDDING_MODEL_NAME,
-            google_api_key=key,
-            output_dimensionality=EMBEDDING_DIMENSIONS,
-        )
-    return _embedding_model_cache[key]
+_embedding_model: Optional[Any] = None
+_wrapped_model: Optional[FastEmbedWrapper] = None
 
 
 def get_embedding_model():
-    manager = _get_google_embedding_manager()
-    current_key = manager.get_current_key()
-    if current_key is None:
-        raise RuntimeError("All Google API keys exhausted or invalid for embeddings.")
-    return _build_embedding_model(current_key)
+    """Lazily load a single quantized ONNX MiniLM instance, reused for the process lifetime."""
+    global _embedding_model
+    if _embedding_model is None:
+        from fastembed import TextEmbedding
+
+        logger.info(f"Loading embedding model: {EMBEDDING_MODEL_NAME}")
+        _embedding_model = TextEmbedding(
+            model_name=EMBEDDING_MODEL_NAME,
+            threads=1,
+            cache_dir="/tmp/fastembed_cache",
+        )
+        logger.info("Embedding model loaded")
+    return _embedding_model
+
+
+def get_embedding_function() -> FastEmbedWrapper:
+    """LangChain-compatible wrapper around the fastembed model, for use with Chroma(embedding_function=...)."""
+    global _wrapped_model
+    if _wrapped_model is None:
+        _wrapped_model = FastEmbedWrapper(get_embedding_model())
+    return _wrapped_model
 
 
 def build_embedding_text(article: SummarizedArticle) -> str:
@@ -77,7 +67,7 @@ def build_embedding_text(article: SummarizedArticle) -> str:
 
 
 def build_embedding_id(url: str) -> str:
-    return hashlib.sha256(url.encode("utf-8")).hexdigest()  # 64 hex chars
+    return hashlib.sha256(url.encode("utf-8")).hexdigest()
 
 
 @dataclass
@@ -112,48 +102,6 @@ class EmbeddingError:
     reason: str
 
 
-def _embed_query_with_rotation(text: str) -> list[float]:
-    manager = _get_google_embedding_manager()
-
-    while manager.has_keys and manager.get_current_key():
-        current_key = manager.get_current_key()
-        key_short = manager.current_key_short
-        try:
-            logger.info(f"Attempting embed_query with key: {key_short} "
-                        f"(remaining: {manager.remaining_keys})")
-            model = _build_embedding_model(current_key)
-            vector = model.embed_query(text)
-            logger.info(f"embed_query succeeded with key: {key_short}")
-            return vector
-        except Exception as exc:  # noqa: BLE001
-            logger.warning(f"Google embedding key {key_short} failed: {exc}")
-            manager.mark_current_key_failed()
-            continue
-
-    raise RuntimeError("All Google API keys exhausted or invalid for embeddings.")
-
-
-def _embed_documents_with_rotation(texts: list[str]) -> list[list[float]]:
-    manager = _get_google_embedding_manager()
-
-    while manager.has_keys and manager.get_current_key():
-        current_key = manager.get_current_key()
-        key_short = manager.current_key_short
-        try:
-            logger.info(f"Attempting embed_documents with key: {key_short} "
-                        f"(remaining: {manager.remaining_keys}, batch size: {len(texts)})")
-            model = _build_embedding_model(current_key)
-            vectors = model.embed_documents(texts)
-            logger.info(f"embed_documents succeeded with key: {key_short}")
-            return vectors
-        except Exception as exc:  # noqa: BLE001
-            logger.warning(f"Google embedding key {key_short} failed: {exc}")
-            manager.mark_current_key_failed()
-            continue
-
-    raise RuntimeError("All Google API keys exhausted or invalid for embeddings.")
-
-
 def embed_article(
     article: SummarizedArticle,
 ) -> tuple[EmbeddedArticle | None, EmbeddingError | None]:
@@ -164,8 +112,9 @@ def embed_article(
         )
 
     try:
-        vector = _embed_query_with_rotation(text)
-    except Exception as exc:  # noqa: BLE001 - model load / encode failure
+        model = get_embedding_model()
+        vector = next(model.embed([text])).tolist()
+    except Exception as exc:  # noqa: BLE001
         return None, EmbeddingError(url=article.url, reason=f"encoding failed: {exc}")
 
     embedding_id = build_embedding_id(article.url)
@@ -175,6 +124,7 @@ def embed_article(
 def embed_all(
     articles: list[SummarizedArticle],
     write_to_chroma: bool = True,
+    batch_size: int = 8,
 ) -> tuple[list[EmbeddedArticle], list[EmbeddingError]]:
     valid: list[tuple[SummarizedArticle, str]] = []
     errors: list[EmbeddingError] = []
@@ -183,10 +133,7 @@ def embed_all(
         text = build_embedding_text(article)
         if not text.strip():
             errors.append(
-                EmbeddingError(
-                    url=article.url,
-                    reason="empty title+summary_short, nothing to embed",
-                )
+                EmbeddingError(url=article.url, reason="empty title+summary_short, nothing to embed")
             )
             continue
         valid.append((article, text))
@@ -195,23 +142,23 @@ def embed_all(
 
     if valid:
         try:
-            vectors = _embed_documents_with_rotation([text for _, text in valid])
-        except Exception as exc:  # noqa: BLE001 - batch encode failure
+            model = get_embedding_model()
+            texts = [text for _, text in valid]
+            vectors: list[list[float]] = []
+            for vec in model.embed(texts, batch_size=batch_size):
+                vectors.append(vec.tolist())
+        except Exception as exc:  # noqa: BLE001
             for article, _ in valid:
-                errors.append(
-                    EmbeddingError(url=article.url, reason=f"encoding failed: {exc}")
-                )
+                errors.append(EmbeddingError(url=article.url, reason=f"encoding failed: {exc}"))
             vectors = None
 
         if vectors is not None:
             for (article, _), vector in zip(valid, vectors):
                 embedding_id = build_embedding_id(article.url)
-                embedded.append(
-                    EmbeddedArticle.from_summarized(article, embedding_id, vector)
-                )
+                embedded.append(EmbeddedArticle.from_summarized(article, embedding_id, vector))
 
     if write_to_chroma and embedded:
-        vectorstore = get_vectorstore(get_embedding_model())
+        vectorstore = get_vectorstore(get_embedding_function())
         upsert_embeddings(
             vectorstore,
             ids=[a.embedding_id for a in embedded],
@@ -228,23 +175,17 @@ def embed_all(
             ],
         )
 
+    gc.collect()
     return embedded, errors
-
-
-def reset_embedding_key_manager() -> None:
-    global _google_embedding_key_manager
-    if _google_embedding_key_manager:
-        _google_embedding_key_manager.reset()
-        logger.info("Google embedding key manager reset to first key")
 
 
 def embedding_node(state: dict) -> dict:
     articles = state.get("articles", [])
     embedded, errors = embed_all(articles, write_to_chroma=True)
     if errors:
-        print("EMBED ERRORS:", errors[0].reason, "| count:", len(errors))  # temp
+        print("EMBED ERRORS:", errors[0].reason, "| count:", len(errors))
     else:
-        print('No errors in embedding node')
+        print("No errors in embedding node")
     state["articles"] = embedded
     state["embedding_errors"] = errors
     return state

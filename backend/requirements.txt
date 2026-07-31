@@ -20,3 +20,4 @@ langchain-chroma
 chromadb
 langgraph
 apscheduler
+fastembed

@@ -13,12 +13,6 @@ logger = logging.getLogger(__name__)
 
 
 def _has_articles(state: PipelineState) -> str:
-    """
-    Conditional-edge router used after every stage. Returns "continue" if
-    at least one article survived the stage just run, "stop" otherwise -
-    this is what lets the graph short-circuit an empty batch straight to
-    END rather than running every remaining stage on nothing.
-    """
     return "continue" if state.get("articles") else "stop"
 
 

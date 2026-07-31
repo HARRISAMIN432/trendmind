@@ -11,6 +11,17 @@ _vectorstore = None
 _client = None
 
 
+class FastEmbedWrapper:
+    def __init__(self, model):
+        self.model = model
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        return [v.tolist() for v in self.model.embed(texts, batch_size=8)]
+
+    def embed_query(self, text: str) -> list[float]:
+        return next(self.model.embed([text])).tolist()
+
+
 def _get_chroma_client():
     global _client
     if _client is None:
@@ -47,7 +58,6 @@ def get_vectorstore(embedding_function):
             collection_metadata={"hnsw:space": "cosine"},
         )
     return _vectorstore
-
 
 def upsert_embeddings(
     vectorstore,

@@ -5,7 +5,7 @@ from typing import Sequence
 
 from sqlalchemy.orm import Session, joinedload
 
-from app.agents.embedding_agent import get_embedding_model
+from app.agents.embedding_agent import get_embedding_function
 from app.models.article import Article
 from app.schemas.article import ArticleListItem
 from app.schemas.recommendation import RecommendationResponse, RecommendedArticle
@@ -63,8 +63,7 @@ def get_recommendations(
     profile_embedding: list[float] | None = None
     vectorstore = None
     try:
-        model = get_embedding_model()
-        vectorstore = get_vectorstore(model)
+        vectorstore = get_vectorstore(get_embedding_function())
         embeddings_by_id = get_embeddings_by_ids(
             vectorstore, [a.embedding_id for a in read_articles if a.embedding_id]
         )
@@ -110,7 +109,7 @@ def get_recommendations(
         db.query(Article)
         .options(joinedload(Article.source), joinedload(Article.companies))
         .filter(Article.url.in_(candidate_urls))
-        .filter(Article.duplicate_of_id.is_(None))  
+        .filter(Article.duplicate_of_id.is_(None))
         .all()
     )
 
