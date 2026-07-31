@@ -23,10 +23,10 @@ export function Header({ title, subtitle, showSearch = false }: HeaderProps) {
   }
 
   return (
-    <header className="border-b border-[var(--border)] bg-[var(--bg-primary)] px-6 py-5">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-[var(--text-primary)]">
+    <header className="border-b border-[var(--border)] bg-[var(--bg-primary)] px-4 py-4 sm:px-6 sm:py-5">
+      <div className="flex flex-col gap-3 sm:gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-lg font-semibold text-[var(--text-primary)] sm:text-xl">
             {title}
           </h1>
           {subtitle && (

@@ -3,10 +3,7 @@
 import { useCallback, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArticleCard } from "@/components/ArticleCard";
-import {
-  CategoryFilter,
-  ImportanceFilter,
-} from "@/components/CategoryFilter";
+import { CategoryFilter, ImportanceFilter } from "@/components/CategoryFilter";
 import { Pagination } from "@/components/Pagination";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { fetchRecommendations } from "@/lib/api";
@@ -98,7 +95,7 @@ export function NewsFeed({
   const showPagination = tab === "latest";
 
   return (
-    <div className="px-6 py-6">
+    <div className="px-4 py-4 sm:px-6 sm:py-6">
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex gap-1 rounded-lg bg-[var(--bg-secondary)] p-1">
           {(
@@ -111,11 +108,12 @@ export function NewsFeed({
               key={id}
               type="button"
               onClick={() => handleTabChange(id)}
+              aria-pressed={tab === id}
               className={cn(
-                "rounded-md px-4 py-2 text-sm font-medium transition-colors",
+                "rounded-md px-4 py-2 text-sm font-medium transition-all",
                 tab === id
-                  ? "bg-[var(--accent)] text-white"
-                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
+                  ? "bg-[var(--accent)] font-semibold text-white shadow-sm ring-2 ring-[var(--accent)]/30 ring-offset-1 ring-offset-[var(--bg-secondary)]"
+                  : "text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]",
               )}
             >
               {label}
@@ -137,9 +135,7 @@ export function NewsFeed({
         <div className="mb-6">
           <CategoryFilter
             selected={category}
-            onChange={(value) =>
-              updateParams({ category: value, offset: "0" })
-            }
+            onChange={(value) => updateParams({ category: value, offset: "0" })}
           />
         </div>
       )}
@@ -151,12 +147,15 @@ export function NewsFeed({
         </div>
       )}
 
-      {tab === "for-you" && recsError && articles.length === 0 && recsLoaded && (
-        <EmptyState
-          title="Nothing to recommend yet"
-          description={recsError}
-        />
-      )}
+      {tab === "for-you" &&
+        recsError &&
+        articles.length === 0 &&
+        recsLoaded && (
+          <EmptyState
+            title="Nothing to recommend yet"
+            description={recsError}
+          />
+        )}
 
       {tab === "latest" && articles.length === 0 && !isPending && (
         <EmptyState

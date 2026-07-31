@@ -21,7 +21,9 @@ export async function generateMetadata({ params }: TrendDetailPageProps) {
   }
 }
 
-export default async function TrendDetailPage({ params }: TrendDetailPageProps) {
+export default async function TrendDetailPage({
+  params,
+}: TrendDetailPageProps) {
   const { id } = await params;
   const trendId = Number(id);
   if (Number.isNaN(trendId)) notFound();
@@ -35,7 +37,7 @@ export default async function TrendDetailPage({ params }: TrendDetailPageProps) 
 
   return (
     <AppShell>
-      <div className="border-b border-[var(--border)] px-6 py-4">
+      <div className="border-b border-[var(--border)] px-4 py-3 sm:px-6 sm:py-4">
         <Link
           href="/trends"
           className="inline-flex items-center gap-1 text-sm text-[var(--text-muted)] transition-colors hover:text-[var(--accent)]"
@@ -53,8 +55,8 @@ export default async function TrendDetailPage({ params }: TrendDetailPageProps) 
         }
       />
 
-      <div className="px-6 py-6">
-        <div className="mb-6 flex flex-wrap gap-4 text-sm text-[var(--text-muted)]">
+      <div className="px-4 py-4 sm:px-6 sm:py-6">
+        <div className="mb-6 flex flex-wrap gap-x-4 gap-y-1 text-sm text-[var(--text-muted)]">
           <span>
             {trend.article_count}{" "}
             {trend.article_count === 1 ? "article" : "articles"}

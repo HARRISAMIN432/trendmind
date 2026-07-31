@@ -62,7 +62,9 @@ export function KnowledgeGraphViz({ nodes, edges }: KnowledgeGraphVizProps) {
     <ForceGraph2D
       graphData={graphData}
       nodeId="id"
-      nodeLabel={(node) => `${(node as GraphNode).name} (${(node as GraphNode).type})`}
+      nodeLabel={(node) =>
+        `${(node as GraphNode).name} (${(node as GraphNode).type})`
+      }
       nodeColor={(node) => (node as GraphNode).color}
       nodeRelSize={6}
       linkDirectionalArrowLength={3.5}

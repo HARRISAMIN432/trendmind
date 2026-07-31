@@ -29,7 +29,7 @@ export default async function GraphPage() {
         subtitle="Entities and relationships extracted from AI news articles."
       />
 
-      <div className="px-6 py-6">
+      <div className="px-4 py-4 sm:px-6 sm:py-6">
         {graph.nodes.length === 0 ? (
           <EmptyState
             title="Graph is empty"
@@ -37,7 +37,7 @@ export default async function GraphPage() {
           />
         ) : (
           <>
-            <div className="mb-4 flex flex-wrap items-center gap-4">
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
               <p className="text-sm text-[var(--text-muted)]">
                 {graph.nodes.length} nodes · {graph.edges.length} edges
               </p>
@@ -48,7 +48,7 @@ export default async function GraphPage() {
                     className="inline-flex items-center gap-1.5 text-xs text-[var(--text-secondary)]"
                   >
                     <span
-                      className="h-2.5 w-2.5 rounded-full"
+                      className="h-2.5 w-2.5 shrink-0 rounded-full"
                       style={{
                         backgroundColor: NODE_TYPE_COLORS[type] ?? "#71717A",
                       }}
@@ -59,7 +59,7 @@ export default async function GraphPage() {
               </div>
             </div>
 
-            <div className="h-[calc(100vh-220px)] min-h-[480px] overflow-hidden rounded-xl border border-[var(--border)]">
+            <div className="h-[60vh] min-h-[360px] overflow-hidden rounded-xl border border-[var(--border)] sm:h-[calc(100vh-220px)] sm:min-h-[480px]">
               <KnowledgeGraphViz nodes={graph.nodes} edges={graph.edges} />
             </div>
           </>

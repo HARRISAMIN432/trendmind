@@ -7,11 +7,7 @@ import { ChatWidget } from "@/components/ChatWidget";
 import { Badge, ImportanceBadge } from "@/components/ui/Badge";
 import { addReadUrl } from "@/lib/read-history";
 import type { ArticleDetail } from "@/lib/types";
-import {
-  encodeCompanyName,
-  formatDate,
-  formatRelativeTime,
-} from "@/lib/utils";
+import { encodeCompanyName, formatDate, formatRelativeTime } from "@/lib/utils";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 
 interface ArticleDetailViewProps {
@@ -25,7 +21,7 @@ export function ArticleDetailView({ article }: ArticleDetailViewProps) {
 
   return (
     <AppShell>
-      <div className="border-b border-[var(--border)] px-6 py-4">
+      <div className="border-b border-[var(--border)] px-4 py-3 sm:px-6 sm:py-4">
         <Link
           href="/"
           className="inline-flex items-center gap-1 text-sm text-[var(--text-muted)] transition-colors hover:text-[var(--accent)]"
@@ -35,7 +31,7 @@ export function ArticleDetailView({ article }: ArticleDetailViewProps) {
         </Link>
       </div>
 
-      <div className="grid gap-8 px-6 py-6 xl:grid-cols-[1fr_380px]">
+      <div className="grid gap-6 px-4 py-4 sm:gap-8 sm:px-6 sm:py-6 lg:grid-cols-[1fr_380px]">
         <article>
           <div className="mb-4 flex flex-wrap items-center gap-2 text-sm text-[var(--text-muted)]">
             {article.source_name && (
@@ -127,7 +123,7 @@ export function ArticleDetailView({ article }: ArticleDetailViewProps) {
           )}
         </article>
 
-        <aside className="xl:sticky xl:top-0 xl:self-start">
+        <aside className="lg:sticky lg:top-0 lg:self-start">
           <ChatWidget category={article.category} compact />
         </aside>
       </div>

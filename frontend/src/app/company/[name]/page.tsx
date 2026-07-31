@@ -31,7 +31,7 @@ export default async function CompanyPage({ params }: CompanyPageProps) {
 
   return (
     <AppShell>
-      <div className="border-b border-[var(--border)] px-6 py-4">
+      <div className="border-b border-[var(--border)] px-4 py-3 sm:px-6 sm:py-4">
         <Link
           href="/companies"
           className="inline-flex items-center gap-1 text-sm text-[var(--text-muted)] transition-colors hover:text-[var(--accent)]"
@@ -46,12 +46,9 @@ export default async function CompanyPage({ params }: CompanyPageProps) {
         subtitle={`Intelligence profile from ${profile.article_count} tracked ${profile.article_count === 1 ? "article" : "articles"}.`}
       />
 
-      <div className="space-y-8 px-6 py-6">
-        <div className="grid gap-4 sm:grid-cols-3">
-          <StatCard
-            label="Articles"
-            value={String(profile.article_count)}
-          />
+      <div className="space-y-8 px-4 py-4 sm:px-6 sm:py-6">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <StatCard label="Articles" value={String(profile.article_count)} />
           <StatCard
             label="First mentioned"
             value={formatDate(profile.first_mentioned_at)}
@@ -62,7 +59,7 @@ export default async function CompanyPage({ params }: CompanyPageProps) {
           />
         </div>
 
-        <section className="rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] p-5">
+        <section className="rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] p-4 sm:p-5">
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-[var(--text-muted)]">
             Overview
           </h2>
@@ -111,7 +108,10 @@ export default async function CompanyPage({ params }: CompanyPageProps) {
         )}
 
         {profile.funding_mentions.length > 0 && (
-          <ListSection title="Funding Mentions" items={profile.funding_mentions} />
+          <ListSection
+            title="Funding Mentions"
+            items={profile.funding_mentions}
+          />
         )}
 
         <section>
@@ -139,7 +139,7 @@ function StatCard({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] px-4 py-3">
       <p className="text-xs text-[var(--text-muted)]">{label}</p>
-      <p className="mt-1 text-lg font-semibold text-[var(--text-primary)]">
+      <p className="mt-1 text-lg font-semibold text-[var(--text-primary)] break-words">
         {value}
       </p>
     </div>

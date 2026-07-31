@@ -24,7 +24,7 @@ export default async function CompaniesPage() {
         subtitle="Organizations mentioned across ingested AI news articles."
       />
 
-      <div className="px-6 py-6">
+      <div className="px-4 py-4 sm:px-6 sm:py-6">
         <CompaniesList initialData={data} />
       </div>
     </AppShell>

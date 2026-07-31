@@ -12,7 +12,7 @@ interface ArticleCardProps {
 export function ArticleCard({ article, score }: ArticleCardProps) {
   return (
     <article className="group animate-fade-in rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] p-5 transition-colors hover:border-[var(--accent)]/30">
-      <div className="mb-3 flex items-start justify-between gap-3">
+      <div className="mb-3 flex flex-wrap items-start justify-between gap-2 sm:gap-3">
         <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--text-muted)]">
           {article.source_name && (
             <span className="font-medium text-[var(--text-secondary)]">
@@ -26,12 +26,6 @@ export function ArticleCard({ article, score }: ArticleCardProps) {
           >
             {formatRelativeTime(article.published_at)}
           </time>
-          {/* {score !== undefined && (
-            <>
-              <span>·</span>
-              <span>{Math.round(score * 100)}% match</span>
-            </>
-          )} */}
         </div>
         <ImportanceBadge importance={article.importance} />
       </div>

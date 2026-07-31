@@ -28,6 +28,7 @@ venv.bak/
 *.tmp
 *.temp
 test.txt
+digest-ai.pem
 
 # Environment variables
 .env.*
