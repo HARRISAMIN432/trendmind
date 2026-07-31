@@ -26,12 +26,12 @@ export function ArticleCard({ article, score }: ArticleCardProps) {
           >
             {formatRelativeTime(article.published_at)}
           </time>
-          {score !== undefined && (
+          {/* {score !== undefined && (
             <>
               <span>·</span>
               <span>{Math.round(score * 100)}% match</span>
             </>
-          )}
+          )} */}
         </div>
         <ImportanceBadge importance={article.importance} />
       </div>
