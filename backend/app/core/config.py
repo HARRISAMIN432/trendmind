@@ -43,6 +43,7 @@ class Settings(BaseSettings):
     # --- Parsed key lists (populated in model_post_init) ---
     GROQ_API_KEYS: List[str] = []
     GOOGLE_API_KEYS: List[str] = []
+    OPENAI_API_KEY: str = None
 
     # --- Vector store (local, no API key needed) ---
     CHROMA_PERSIST_DIR: str = "./chroma_data"

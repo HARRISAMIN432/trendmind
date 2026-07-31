@@ -73,7 +73,7 @@ def semantic_search(
     n_results: int = 10,
     category: str | None = None,
     include_duplicates: bool = False,
-    min_score: float = -0.50,
+    min_score: float = 0.3,
     rewrite_query: bool = True,
 ) -> list[SearchHit]:
     query = query.strip()
@@ -93,7 +93,7 @@ def semantic_search(
     where = {"category": category} if category else None
 
     raw_hits = query_similar_with_scores(
-        vectorstore, query_embedding, n_results=n_results * 3, where=where
+        vectorstore, query_embedding, n_results=n_results * 9, where=where
     )
     if not raw_hits:
         return []
@@ -102,25 +102,36 @@ def semantic_search(
     if not raw_hits:
         return []
 
-    ids = [hit["id"] for hit in raw_hits]
-    score_by_id = {hit["id"]: hit["score"] for hit in raw_hits}
+    best_score_by_url: dict[str, float] = {}
+    for hit in raw_hits:
+        url = (hit.get("metadata") or {}).get("url")
+        if not url:
+            continue
+        score = hit["score"] or 0.0
+        if url not in best_score_by_url or score > best_score_by_url[url]:
+            best_score_by_url[url] = score
+
+    if not best_score_by_url:
+        return []
 
     articles = (
         db.query(Article)
         .options(joinedload(Article.source), joinedload(Article.companies))
-        .filter(Article.embedding_id.in_(ids))
+        .filter(Article.url.in_(best_score_by_url.keys()))
         .all()
     )
-    articles_by_embedding_id = {a.embedding_id: a for a in articles}
+    articles_by_url = {a.url: a for a in articles}
+
+    sorted_urls = sorted(best_score_by_url, key=lambda u: best_score_by_url[u], reverse=True)
 
     hits: list[SearchHit] = []
-    for embedding_id in ids:
-        article = articles_by_embedding_id.get(embedding_id)
+    for url in sorted_urls:
+        article = articles_by_url.get(url)
         if article is None:
             continue
         if not include_duplicates and article.duplicate_of_id is not None:
             continue
-        hits.append(SearchHit(article=article, score=score_by_id[embedding_id]))
+        hits.append(SearchHit(article=article, score=best_score_by_url[url]))
         if len(hits) >= n_results:
             break
 

@@ -37,7 +37,7 @@ RSS feeds → Collector → Cleaner → Classifier → Summarizer → Embedder �
 | Layer         | Choice                                                |
 | ------------- | ----------------------------------------------------- |
 | LLM           | Groq (Llama 3.1/3.3 70B), Gemini Flash as fallback    |
-| Embeddings    | `sentence-transformers` (`all-MiniLM-L6-v2`), local   |
+| Embeddings    | `text-embedding-3-small` , OPENAI                     |
 | Vector store  | Chroma (local, file-based)                            |
 | Database      | Neon Postgres (serverless free tier)                  |
 | Orchestration | LangGraph                                             |

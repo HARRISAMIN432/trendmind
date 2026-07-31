@@ -4,7 +4,8 @@ import hashlib
 import logging
 from dataclasses import asdict, dataclass
 from typing import Any, Optional
-from app.vectorstore.chroma_client import get_vectorstore, upsert_embeddings, FastEmbedWrapper
+from app.core.config import get_settings
+from app.vectorstore.chroma_client import get_vectorstore, upsert_embeddings
 
 try:
     from app.agents.summarization_agent import SummarizedArticle
@@ -31,43 +32,114 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-EMBEDDING_MODEL_NAME = "d"
-EMBEDDING_DIMENSIONS = 384
+EMBEDDING_MODEL_NAME = "text-embedding-3-small"
+EMBEDDING_DIMENSIONS = 1536
 
 _embedding_model: Optional[Any] = None
-_wrapped_model: Optional[FastEmbedWrapper] = None
 
 
-def get_embedding_model():
-    """Lazily load a single quantized ONNX MiniLM instance, reused for the process lifetime."""
+def get_embedding_function():
     global _embedding_model
     if _embedding_model is None:
-        from fastembed import TextEmbedding
+        from langchain_openai import OpenAIEmbeddings
 
-        logger.info(f"Loading embedding model: {EMBEDDING_MODEL_NAME}")
-        _embedding_model = TextEmbedding(
-            model_name=EMBEDDING_MODEL_NAME,
-            threads=1,
-            cache_dir="/tmp/fastembed_cache",
+        settings = get_settings()
+        if not settings.OPENAI_API_KEY:
+            raise RuntimeError(
+                "OPENAI_API_KEY must be set to use OpenAI embeddings. "
+                "Add it to your environment/.env."
+            )
+        logger.info(f"Initializing OpenAIEmbeddings: {EMBEDDING_MODEL_NAME}")
+        _embedding_model = OpenAIEmbeddings(
+            model=EMBEDDING_MODEL_NAME,
+            api_key=settings.OPENAI_API_KEY,
         )
-        logger.info("Embedding model loaded")
     return _embedding_model
 
 
-def get_embedding_function() -> FastEmbedWrapper:
-    """LangChain-compatible wrapper around the fastembed model, for use with Chroma(embedding_function=...)."""
-    global _wrapped_model
-    if _wrapped_model is None:
-        _wrapped_model = FastEmbedWrapper(get_embedding_model())
-    return _wrapped_model
+def _embed_texts(texts: list[str], batch_size: int = 100) -> list[list[float]]:
+    if not texts:
+        return []
+    embed_fn = get_embedding_function()
+    vectors: list[list[float]] = []
+    for i in range(0, len(texts), batch_size):
+        batch = texts[i : i + batch_size]
+        vectors.extend(embed_fn.embed_documents(batch))
+    return vectors
 
 
-def build_embedding_text(article: SummarizedArticle) -> str:
-    return f"{article.title}\n\n{article.summary_short}".strip()
+CHUNK_SUMMARY = "summary"
+CHUNK_CONTEXT = "context"
+CHUNK_TECHNICAL = "technical"
+
+MAX_CHUNK_WORDS = 150
+
+
+def _cap_words(text: str, max_words: int = MAX_CHUNK_WORDS) -> str:
+    words = text.strip().split()
+    return " ".join(words[:max_words])
+
+
+def build_chunk_texts(article: SummarizedArticle) -> dict[str, str]:
+    """Build up to 3 focused embedding chunks per article instead of one
+    combined blob.
+
+    Each chunk is single-purpose and short, which retrieves far better than
+    one long vector representing several different kinds of information at
+    once (a query about a benchmark number has to compete against summary
+    prose diluting the same vector in the single-chunk approach). Chunks:
+
+    - summary:   title + key_takeaway + summary_short    ("what happened")
+    - context:   title + why_it_matters                  ("why it matters")
+    - technical: title + technical_highlights             ("the numbers/specs")
+      - only created if technical_highlights is non-empty, since most
+        funding/policy articles have none.
+
+    Each chunk is capped at MAX_CHUNK_WORDS words to stay dense/focused.
+
+    If a later chunk's text ends up identical to one already built (e.g. a
+    thin article where why_it_matters/technical_highlights are effectively
+    empty and only the title survives), it's skipped - storing 2-3 identical
+    vectors for the same article wastes cost/storage with zero retrieval
+    benefit (doubly true now that each embedding call is a billed API request).
+    """
+    chunks: dict[str, str] = {}
+    seen_texts: set[str] = set()
+
+    def _add_if_unique(chunk_type: str, text: str) -> None:
+        if text and text not in seen_texts:
+            chunks[chunk_type] = text
+            seen_texts.add(text)
+
+    summary_parts = [article.title, article.key_takeaway, article.summary_short]
+    summary_text = " ".join(p.strip() for p in summary_parts if p and p.strip())
+    if summary_text:
+        _add_if_unique(CHUNK_SUMMARY, _cap_words(summary_text))
+
+    if article.why_it_matters and article.why_it_matters.strip():
+        context_text = " ".join(
+            p.strip() for p in [article.title, article.why_it_matters] if p and p.strip()
+        )
+        _add_if_unique(CHUNK_CONTEXT, _cap_words(context_text))
+
+    if article.technical_highlights and article.technical_highlights.strip():
+        technical_text = " ".join(
+            p.strip() for p in [article.title, article.technical_highlights] if p and p.strip()
+        )
+        _add_if_unique(CHUNK_TECHNICAL, _cap_words(technical_text))
+
+    return chunks
 
 
 def build_embedding_id(url: str) -> str:
+    """Base id derived from the article's URL. Chroma chunk ids are built as
+    f"{embedding_id}:{chunk_type}" - this base value itself is what's stored
+    in Postgres (articles.embedding_id), unchanged by the provider switch."""
     return hashlib.sha256(url.encode("utf-8")).hexdigest()
+
+
+def build_chunk_id(embedding_id: str, chunk_type: str) -> str:
+    return f"{embedding_id}:{chunk_type}"
 
 
 @dataclass
@@ -87,13 +159,25 @@ class EmbeddedArticle:
     why_it_matters: str
     technical_highlights: str
     embedding_id: str
-    embedding: list[float]
+    embedding: list[float]                    # primary vector (summary chunk) - kept for any
+                                                # existing code expecting one vector per article
+                                                # (e.g. duplicate-detection similarity checks)
+    chunk_embeddings: dict[str, list[float]]   # all chunks actually produced, keyed by chunk type
 
     @classmethod
     def from_summarized(
-        cls, article: SummarizedArticle, embedding_id: str, embedding: list[float]
+        cls,
+        article: SummarizedArticle,
+        embedding_id: str,
+        chunk_embeddings: dict[str, list[float]],
     ) -> "EmbeddedArticle":
-        return cls(**asdict(article), embedding_id=embedding_id, embedding=embedding)
+        primary = chunk_embeddings.get(CHUNK_SUMMARY) or next(iter(chunk_embeddings.values()), [])
+        return cls(
+            **asdict(article),
+            embedding_id=embedding_id,
+            embedding=primary,
+            chunk_embeddings=chunk_embeddings,
+        )
 
 
 @dataclass
@@ -105,74 +189,98 @@ class EmbeddingError:
 def embed_article(
     article: SummarizedArticle,
 ) -> tuple[EmbeddedArticle | None, EmbeddingError | None]:
-    text = build_embedding_text(article)
-    if not text.strip():
+    chunk_texts = build_chunk_texts(article)
+    if not chunk_texts:
         return None, EmbeddingError(
-            url=article.url, reason="empty title+summary_short, nothing to embed"
+            url=article.url, reason="empty summarized fields, nothing to embed"
         )
 
     try:
-        model = get_embedding_model()
-        vector = next(model.embed([text])).tolist()
+        chunk_types = list(chunk_texts.keys())
+        vectors = _embed_texts([chunk_texts[t] for t in chunk_types])
     except Exception as exc:  # noqa: BLE001
         return None, EmbeddingError(url=article.url, reason=f"encoding failed: {exc}")
 
     embedding_id = build_embedding_id(article.url)
-    return EmbeddedArticle.from_summarized(article, embedding_id, vector), None
+    chunk_embeddings = dict(zip(chunk_types, vectors))
+    return EmbeddedArticle.from_summarized(article, embedding_id, chunk_embeddings), None
 
 
 def embed_all(
     articles: list[SummarizedArticle],
     write_to_chroma: bool = True,
-    batch_size: int = 8,
+    batch_size: int = 100,
 ) -> tuple[list[EmbeddedArticle], list[EmbeddingError]]:
-    valid: list[tuple[SummarizedArticle, str]] = []
+    valid: list[tuple[SummarizedArticle, dict[str, str]]] = []
     errors: list[EmbeddingError] = []
 
     for article in articles:
-        text = build_embedding_text(article)
-        if not text.strip():
+        chunk_texts = build_chunk_texts(article)
+        if not chunk_texts:
             errors.append(
-                EmbeddingError(url=article.url, reason="empty title+summary_short, nothing to embed")
+                EmbeddingError(url=article.url, reason="empty summarized fields, nothing to embed")
             )
             continue
-        valid.append((article, text))
+        valid.append((article, chunk_texts))
 
     embedded: list[EmbeddedArticle] = []
 
     if valid:
+        # Flatten every article's chunks into one list so a small number of
+        # batched API calls covers all chunks across all articles, then
+        # regroup by article afterward.
+        flat_texts: list[str] = []
+        flat_index: list[tuple[int, str]] = []  # (position in valid, chunk_type)
+        for i, (_, chunk_texts) in enumerate(valid):
+            for chunk_type, text in chunk_texts.items():
+                flat_texts.append(text)
+                flat_index.append((i, chunk_type))
+
+        vectors: list[list[float]] | None
         try:
-            model = get_embedding_model()
-            texts = [text for _, text in valid]
-            vectors: list[list[float]] = []
-            for vec in model.embed(texts, batch_size=batch_size):
-                vectors.append(vec.tolist())
+            vectors = _embed_texts(flat_texts, batch_size=batch_size)
         except Exception as exc:  # noqa: BLE001
             for article, _ in valid:
                 errors.append(EmbeddingError(url=article.url, reason=f"encoding failed: {exc}"))
             vectors = None
 
         if vectors is not None:
-            for (article, _), vector in zip(valid, vectors):
+            per_article_chunks: list[dict[str, list[float]]] = [dict() for _ in valid]
+            for (article_i, chunk_type), vector in zip(flat_index, vectors):
+                per_article_chunks[article_i][chunk_type] = vector
+
+            for (article, _), chunk_embeddings in zip(valid, per_article_chunks):
                 embedding_id = build_embedding_id(article.url)
-                embedded.append(EmbeddedArticle.from_summarized(article, embedding_id, vector))
+                embedded.append(EmbeddedArticle.from_summarized(article, embedding_id, chunk_embeddings))
 
     if write_to_chroma and embedded:
         vectorstore = get_vectorstore(get_embedding_function())
-        upsert_embeddings(
-            vectorstore,
-            ids=[a.embedding_id for a in embedded],
-            embeddings=[a.embedding for a in embedded],
-            documents=[build_embedding_text(a) for a in embedded],
-            metadatas=[
-                {
+
+        ids: list[str] = []
+        embeddings: list[list[float]] = []
+        documents: list[str] = []
+        metadatas: list[dict[str, Any]] = []
+
+        for a in embedded:
+            chunk_texts = build_chunk_texts(a)
+            for chunk_type, vector in a.chunk_embeddings.items():
+                ids.append(build_chunk_id(a.embedding_id, chunk_type))
+                embeddings.append(vector)
+                documents.append(chunk_texts.get(chunk_type, ""))
+                metadatas.append({
                     "url": a.url,
                     "title": a.title,
                     "category": a.category or "",
                     "importance": a.importance or "",
-                }
-                for a in embedded
-            ],
+                    "chunk_type": chunk_type,
+                })
+
+        upsert_embeddings(
+            vectorstore,
+            ids=ids,
+            embeddings=embeddings,
+            documents=documents,
+            metadatas=metadatas,
         )
 
     gc.collect()

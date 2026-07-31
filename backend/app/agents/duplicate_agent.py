@@ -24,6 +24,7 @@ except ImportError:
         technical_highlights: str = ""
         embedding_id: str = ""
         embedding: list[float] = _field(default_factory=list)
+        chunk_embeddings: dict[str, list[float]] = _field(default_factory=dict)
 
 SIMILARITY_THRESHOLD = 0.92
 
@@ -46,6 +47,7 @@ class DeduplicatedArticle:
     technical_highlights: str
     embedding_id: str
     embedding: list[float]
+    chunk_embeddings: dict[str, list[float]]
     is_duplicate: bool = False
     duplicate_of_url: str | None = None
     similarity_score: float | None = None

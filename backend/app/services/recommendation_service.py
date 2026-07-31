@@ -64,9 +64,15 @@ def get_recommendations(
     vectorstore = None
     try:
         vectorstore = get_vectorstore(get_embedding_function())
-        embeddings_by_id = get_embeddings_by_ids(
-            vectorstore, [a.embedding_id for a in read_articles if a.embedding_id]
-        )
+        # embedding_id is now only a *base* id - the actual Chroma vector for
+        # each article lives under "{embedding_id}:summary" (plus :context /
+        # :technical if present). The summary chunk is the best single
+        # stand-in for "what this article is about", so that's what we pull
+        # per read article to build the recommendation profile.
+        summary_chunk_ids = [
+            f"{a.embedding_id}:summary" for a in read_articles if a.embedding_id
+        ]
+        embeddings_by_id = get_embeddings_by_ids(vectorstore, summary_chunk_ids)
         profile_embedding = _average_embedding(list(embeddings_by_id.values()))
     except Exception as exc:  # pragma: no cover - defensive, mirrors llm_client's own boundary
         logger.warning("Recommendation embedding lookup failed: %s", exc)
@@ -95,8 +101,12 @@ def get_recommendations(
         url = metadata.get("url")
         if not url or url in read_url_set:
             continue
-        candidate_urls.append(url)
-        scores_by_url[url] = hit.get("score") or 0.0
+        score = hit.get("score") or 0.0
+        if url not in scores_by_url:
+            candidate_urls.append(url)
+            scores_by_url[url] = score
+        elif score > scores_by_url[url]:
+            scores_by_url[url] = score
 
     if not candidate_urls:
         return RecommendationResponse(

@@ -13,6 +13,7 @@ trafilatura
 langchain
 langchain-groq
 langchain-google-genai
+langchain-openai
 pydantic
 sentence-transformers
 langchain-huggingface

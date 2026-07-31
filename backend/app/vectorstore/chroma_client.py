@@ -1,66 +1,45 @@
 from __future__ import annotations
-import os
+
 from typing import Any
+
+import chromadb
+from langchain_chroma import Chroma
+from langchain_openai import OpenAIEmbeddings
+
 from app.core.config import get_settings
 
 settings = get_settings()
 
-DEFAULT_COLLECTION_NAME = 'articles'
+DEFAULT_COLLECTION_NAME = "articles"
 
-_vectorstore = None
-_client = None
+if not settings.CHROMA_API_KEY or not settings.CHROMA_TENANT:
+    raise RuntimeError("CHROMA_API_KEY and CHROMA_TENANT must be configured.")
 
+embeddings = OpenAIEmbeddings(
+    model="text-embedding-3-small",
+    api_key=settings.OPENAI_API_KEY,
+)
 
-class FastEmbedWrapper:
-    def __init__(self, model):
-        self.model = model
+client = chromadb.CloudClient(
+    api_key=settings.CHROMA_API_KEY,
+    tenant=settings.CHROMA_TENANT,
+    database=settings.CHROMA_DATABASE,
+)
 
-    def embed_documents(self, texts: list[str]) -> list[list[float]]:
-        return [v.tolist() for v in self.model.embed(texts, batch_size=8)]
-
-    def embed_query(self, text: str) -> list[float]:
-        return next(self.model.embed([text])).tolist()
-
-
-def _get_chroma_client():
-    global _client
-    if _client is None:
-        import chromadb
-
-        api_key = settings.CHROMA_API_KEY
-        tenant = settings.CHROMA_TENANT
-        database = settings.CHROMA_DATABASE
-
-        if not api_key or not tenant:
-            raise RuntimeError(
-                "CHROMA_API_KEY and CHROMA_TENANT must be set to use Chroma Cloud. "
-                "Create a free database at https://trychroma.com and set these "
-                "(plus optionally CHROMA_DATABASE) in your environment / .env."
-            )
-
-        _client = chromadb.CloudClient(
-            tenant=tenant,
-            database=database,
-            api_key=api_key,
-        )
-    return _client
+vector_store = Chroma(
+    client=client,
+    collection_name=DEFAULT_COLLECTION_NAME,
+    embedding_function=embeddings,
+    collection_metadata={"hnsw:space": "cosine"},
+)
 
 
-def get_vectorstore(embedding_function):
-    global _vectorstore
-    if _vectorstore is None:
-        from langchain_chroma import Chroma
+def get_vectorstore(embedding_function=None) -> Chroma:
+    return vector_store
 
-        _vectorstore = Chroma(
-            client=_get_chroma_client(),
-            collection_name=DEFAULT_COLLECTION_NAME,
-            embedding_function=embedding_function,
-            collection_metadata={"hnsw:space": "cosine"},
-        )
-    return _vectorstore
 
 def upsert_embeddings(
-    vectorstore,
+    vectorstore: Chroma,
     ids: list[str],
     embeddings: list[list[float]],
     documents: list[str],
@@ -68,51 +47,71 @@ def upsert_embeddings(
 ) -> None:
     if not ids:
         return
+
     vectorstore._collection.upsert(
-        ids=ids, embeddings=embeddings, documents=documents, metadatas=metadatas
+        ids=ids,
+        embeddings=embeddings,
+        documents=documents,
+        metadatas=metadatas,
     )
 
 
-def query_similar(vectorstore, embedding: list[float], n_results: int = 5):
-    return vectorstore.similarity_search_by_vector(embedding, k=n_results)
+def get_embeddings_by_ids(
+    vectorstore: Chroma,
+    ids: list[str],
+) -> dict[str, list[float]]:
+    if not ids:
+        return {}
+
+    result = vectorstore._collection.get(
+        ids=ids,
+        include=["embeddings"],
+    )
+
+    result_ids = result.get("ids", [])
+    result_embeddings = result.get("embeddings", [])
+
+    return {
+        id_: embedding
+        for id_, embedding in zip(result_ids, result_embeddings)
+    }
+
+
+def query_similar(
+    vectorstore: Chroma,
+    query: str,
+    n_results: int = 5,
+):
+    return vectorstore.similarity_search(
+        query=query,
+        k=n_results,
+    )
 
 
 def query_similar_with_scores(
-    vectorstore,
-    embedding: list[float],
+    vectorstore: Chroma,
+    query_embedding: list[float],
     n_results: int = 5,
-    where: dict[str, Any] | None = None,
-) -> list[dict[str, Any]]:
-    kwargs: dict[str, Any] = dict(
-        query_embeddings=[embedding],
+    where: dict | None = None,
+):
+    result = vectorstore._collection.query(
+        query_embeddings=[query_embedding],
         n_results=n_results,
-        include=["metadatas", "documents", "distances"],
+        where=where,
+        include=["documents", "metadatas", "distances"],
     )
-    if where:
-        kwargs["where"] = where
 
-    raw = vectorstore._collection.query(**kwargs)
+    ids = result.get("ids", [[]])[0]
+    documents = result.get("documents", [[]])[0]
+    metadatas = result.get("metadatas", [[]])[0]
+    distances = result.get("distances", [[]])[0]
 
-    ids = raw.get("ids", [[]])[0]
-    documents = raw.get("documents", [[]])[0]
-    metadatas = raw.get("metadatas", [[]])[0]
-    distances = raw.get("distances", [[]])[0]
-
-    results: list[dict[str, Any]] = []
-    for i, doc_id in enumerate(ids):
-        distance = distances[i] if i < len(distances) else None
-        results.append({
-            "id": doc_id,
-            "document": documents[i] if i < len(documents) else None,
-            "metadata": metadatas[i] if i < len(metadatas) else {},
-            "distance": distance,
-            "score": (1.0 - distance) if distance is not None else None,
-        })
-    return results
-
-
-def get_embeddings_by_ids(vectorstore, ids: list[str]) -> dict[str, list[float]]:
-    if not ids:
-        return {}
-    raw = vectorstore._collection.get(ids=ids, include=["embeddings"])
-    return dict(zip(raw.get("ids", []), raw.get("embeddings", [])))
+    return [
+        {
+            "id": id_,
+            "document": document,
+            "metadata": metadata,
+            "score": 1.0 - distance,  
+        }
+        for id_, document, metadata, distance in zip(ids, documents, metadatas, distances)
+    ]
