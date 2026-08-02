@@ -80,13 +80,22 @@ def generate_trends(
     if not articles:
         return [], 0, 0
 
-    embedding_ids = [a.embedding_id for a in articles]
+    # Postgres only stores the bare hash in Article.embedding_id, but
+    # Chroma never has a vector under that bare key — embedding_agent's
+    # build_chunk_id() always suffixes it (":summary", ":context",
+    # ":technical"). Looking up the bare id here silently returns
+    # nothing, which was making every article get skipped below and
+    # generate_trends() always produce 0 trends regardless of data
+    # volume. Use the ":summary" chunk specifically, since that's the
+    # one built from title+key_takeaway+summary_short — the "what
+    # happened" vector, which is what trend clustering should compare on.
+    chunk_ids = [f"{a.embedding_id}:summary" for a in articles]
     vectorstore = get_vectorstore(get_embedding_function())
-    embeddings_by_chroma_id = get_embeddings_by_ids(vectorstore, embedding_ids)
+    embeddings_by_chroma_id = get_embeddings_by_ids(vectorstore, chunk_ids)
     embeddings_by_article_id = {
-        a.id: embeddings_by_chroma_id[a.embedding_id]
+        a.id: embeddings_by_chroma_id[f"{a.embedding_id}:summary"]
         for a in articles
-        if a.embedding_id in embeddings_by_chroma_id
+        if f"{a.embedding_id}:summary" in embeddings_by_chroma_id
     }
 
     clusters = _cluster_articles(articles, embeddings_by_article_id, similarity_threshold)

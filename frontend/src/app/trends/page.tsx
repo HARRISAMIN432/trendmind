@@ -19,10 +19,7 @@ export default async function TrendsPage() {
 
   return (
     <AppShell>
-      <Header
-        title="Trends"
-        subtitle="LLM-summarized clusters of related AI news over recent time windows."
-      />
+      <Header title="Trends" subtitle="" />
 
       <div className="px-4 py-4 sm:px-6 sm:py-6">
         <TrendsList initialData={data} />
