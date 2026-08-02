@@ -46,7 +46,7 @@ def list_trends(
 
 @router.get("/{trend_id}", response_model=TrendDetail)
 @limiter.limit(f"{settings.RATE_LIMIT_PER_MINUTE}/minute")
-def get_trend(request, Request, trend_id: int, db: Session = Depends(get_db)) -> TrendDetail:
+def get_trend(request: Request, trend_id: int, db: Session = Depends(get_db)) -> TrendDetail:
     trend = (
         db.query(Trend)
         .options(joinedload(Trend.articles).joinedload(Article.source), joinedload(Trend.articles).joinedload(Article.companies))
