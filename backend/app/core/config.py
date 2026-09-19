@@ -37,7 +37,7 @@ class Settings(BaseSettings):
     CHROMA_TENANT: Optional[str] = None
     CHROMA_DATABASE: str = "trendmind"
     
-    GROQ_MODEL: str = "llama-3.3-70b-versatile"
+    GROQ_MODEL: str = "openai/gpt-oss-120b"
     GEMINI_MODEL: str = "gemini-3-flash-preview"
 
     # --- Parsed key lists (populated in model_post_init) ---
@@ -47,11 +47,6 @@ class Settings(BaseSettings):
 
     # --- Vector store (local, no API key needed) ---
     CHROMA_PERSIST_DIR: str = "./chroma_data"
-
-    # --- LangSmith (optional, free tier tracing) ---
-    LANGCHAIN_TRACING_V2: bool = False
-    LANGCHAIN_API_KEY: Optional[str] = None
-    LANGCHAIN_PROJECT: str = "trendmind"
     
     # --- Scheduler ---
     ENABLE_SCHEDULER: bool = False

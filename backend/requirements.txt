@@ -3,6 +3,7 @@ slowapi
 uvicorn[standard]
 sqlalchemy
 alembic
+psycopg[binary]
 psycopg2-binary
 pydantic-settings
 python-dotenv
